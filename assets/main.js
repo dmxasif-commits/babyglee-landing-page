@@ -1,0 +1,423 @@
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const BG = window.BG || {}, PR = window.BG_PRODUCTS || {}, RV = Array.isArray(window.BG_REVIEWS) ? window.BG_REVIEWS : [];
+const noop = () => {};
+const T = window.BGT || { ecom: noop, push: noop, item: () => null, sum: () => 0, pageData: noop, customerData: () => Promise.resolve({}), ids: () => ({}), eventId: () => String(Date.now()), attribution: () => ({}), uid: () => '' };
+const fmt = n => '৳' + Number(n).toLocaleString('en-US');
+const page = document.body.dataset.page;
+const toast = (() => { let t; return m => { const e = $('#toast'); if (!e) return; e.textContent = m; e.classList.add('on'); clearTimeout(t); t = setTimeout(() => e.classList.remove('on'), 2200); }; })();
+const PAGE_TYPES = { landing: 'landing', checkout: 'checkout', thanks: 'thank_you' };
+T.pageData(PAGE_TYPES[page] || 'info', 'landing');
+
+/* ---------- catalogue helpers (live data from the admin panel when the backend is on) ---------- */
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const priceOf = s => (PR[s] && PR[s].price) || BG.PRICE;
+const listOf = s => (PR[s] && PR[s].listPrice) || BG.LIST_PRICE || priceOf(s);
+const usdOf = s => (PR[s] && PR[s].priceUsd != null) ? PR[s].priceUsd : BG.PRICE_USD;
+const sizesOf = s => (PR[s] && PR[s].sizes && PR[s].sizes.length) ? PR[s].sizes.map(Number) : null;
+const outOf = s => (PR[s] && PR[s].out) ? PR[s].out.map(Number) : [];
+const soldOut = s => { const a = sizesOf(s), o = outOf(s); return !!a && a.every(n => o.includes(n)); };
+function setPrice(box, slug) {
+  if (!box) return;
+  const p = slug ? priceOf(slug) : BG.PRICE, l = slug ? listOf(slug) : BG.LIST_PRICE, s = $('s', box), b = $('b', box);
+  if (b) b.textContent = fmt(p);
+  if (s) { s.textContent = fmt(l); s.hidden = !(l > p); }
+}
+/* Rebuilds the size chips from the product's own variations (admin panel); sold-out sizes are shown crossed out and cannot be chosen. */
+
+/* ---------- mobile menu ---------- */
+const burger = $('#burger'), nav = $('#nav');
+if (burger) {
+  const set = o => { nav.classList.toggle('open', o); burger.setAttribute('aria-expanded', o); };
+  burger.addEventListener('click', () => set(!nav.classList.contains('open')));
+  $$('#nav a').forEach(a => a.addEventListener('click', () => set(false)));
+  document.addEventListener('keydown', e => e.key === 'Escape' && set(false));
+}
+
+/* ---------- ship-to selector ---------- */
+const shipBtn = $('#shipBtn'), shipMenu = $('#shipMenu');
+if (shipBtn) {
+  const setShip = o => { shipMenu.hidden = !o; shipBtn.setAttribute('aria-expanded', o); };
+  shipBtn.addEventListener('click', e => { e.stopPropagation(); setShip(shipMenu.hidden); });
+  document.addEventListener('click', e => { if (!shipMenu.hidden && !shipMenu.contains(e.target)) setShip(false); });
+  document.addEventListener('keydown', e => e.key === 'Escape' && setShip(false));
+}
+
+/* ---------- copy-link buttons (lp/index.html) ---------- */
+$$('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+  const url = b.dataset.copy;
+  try { await navigator.clipboard.writeText(url); }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (x) {} document.body.removeChild(ta); }
+  const old = b.textContent; b.textContent = 'Copied!'; toast('Link copied'); setTimeout(() => b.textContent = old, 1500);
+}));
+
+/* ---------- 3D tilt (pointer devices only) ---------- */
+if (matchMedia('(hover:hover) and (pointer:fine)').matches) {
+  $$('.tilt').forEach(el => {
+    el.addEventListener('pointermove', e => {
+      const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+      el.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 14}deg) translateY(-4px)`;
+    });
+    el.addEventListener('pointerleave', () => el.style.transform = '');
+  });
+  const stage = $('#stage');
+  if (stage) {
+    const shoes = $$('.shoe', stage);
+    stage.addEventListener('pointermove', e => {
+      const r = stage.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+      shoes.forEach(s => { s.style.setProperty('--ry', x * 22 + 'deg'); s.style.setProperty('--rx', -y * 16 + 'deg'); s.style.setProperty('--z', (s.dataset.depth || 0) + 'px'); });
+    });
+    stage.addEventListener('pointerleave', () => shoes.forEach(s => { s.style.setProperty('--ry', '0deg'); s.style.setProperty('--rx', '0deg'); s.style.setProperty('--z', '0px'); }));
+  }
+}
+
+/* ---------- scroll reveal ---------- */
+if ('IntersectionObserver' in window) {
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 });
+  $$('.sec-head,.pcard,.feat,.checks li,.faq details,.cc').forEach(el => { el.classList.add('rv'); io.observe(el); });
+}
+
+/* ---------- size finder (home) ---------- */
+const eu4cm = v => Math.min(36, Math.max(21, Math.round((v + 1.5) * 1.5)));
+const ageOf = eu => eu <= 23 ? '≈ 1–2 yrs' : eu <= 26 ? '≈ 2–4 yrs' : eu <= 29 ? '≈ 4–6 yrs' : eu <= 32 ? '≈ 6–8 yrs' : '≈ 8–10 yrs';
+const cm = $('#cm');
+if (cm) {
+  const calc = () => { const v = +cm.value, eu = eu4cm(v); $('#cmOut').textContent = v.toFixed(1); $('#sizeOut').textContent = 'EU ' + eu; $('#ageOut').textContent = ageOf(eu); };
+  cm.addEventListener('input', calc); calc();
+}
+
+/* =====================================================================
+   Bottom sheets (size guide + quick add): accessible, body-scroll locked
+   ===================================================================== */
+const sheetStack = [];
+let lastFocus = null;
+const syncLock = () => document.body.classList.toggle('lock', sheetStack.length > 0);
+function openSheet(el) {
+  if (!el) return;
+  lastFocus = lastFocus || document.activeElement;
+  el.hidden = false; sheetStack.push(el); syncLock();
+  requestAnimationFrame(() => { el.classList.add('on'); const f = $('[data-close].icon-btn', el); if (f) f.focus({ preventScroll: true }); });
+}
+function closeSheet(el) {
+  if (!el || el.hidden) return;
+  el.classList.remove('on'); const i = sheetStack.indexOf(el); if (i > -1) sheetStack.splice(i, 1); syncLock();
+  setTimeout(() => { if (!el.classList.contains('on')) el.hidden = true; }, 260);
+  if (!sheetStack.length && lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} lastFocus = null; }
+}
+document.addEventListener('click', e => { const c = e.target.closest('[data-close]'); if (c) closeSheet(c.closest('.sheet-wrap')); });
+document.addEventListener('keydown', e => {
+  const top = sheetStack[sheetStack.length - 1]; if (!top) return;
+  if (e.key === 'Escape') closeSheet(top);
+  if (e.key === 'Tab') { const f = $$('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])', top).filter(x => !x.disabled && x.offsetParent !== null); if (!f.length) return; const a = f[0], z = f[f.length - 1]; if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); } }
+});
+
+/* size guide sheet: foot-length helper + full table; can hand the chosen size back to the caller */
+const sizeModal = $('#sizeModal');
+let sizeTarget = null;
+if (sizeModal) {
+  const szCm = $('#szCm'), use = $('#szUse');
+  const calc = () => {
+    const v = +szCm.value, eu = eu4cm(v);
+    $('#szCmOut').textContent = v.toFixed(1); $('#szOut').textContent = 'EU ' + eu; $('#szAge').textContent = ageOf(eu); use.textContent = 'Select EU ' + eu; use.dataset.eu = eu;
+    $$('tr[data-eu]', sizeModal).forEach(r => r.classList.toggle('hl', +r.dataset.eu === eu));
+  };
+  szCm.addEventListener('input', calc); calc();
+  use.addEventListener('click', () => { if (sizeTarget) sizeTarget(+use.dataset.eu); closeSheet(sizeModal); });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-open-size]'); if (!b) return;
+    sizeTarget = b.sizeTarget || null; use.hidden = !sizeTarget; openSheet(sizeModal);
+    T.push({ event: 'size_guide_open', page_type: PAGE_TYPES[page] || 'other' });
+  });
+}
+
+
+const LISTS = {};
+const itemsOf = list => list.map((i, n) => T.item(i.slug, { size: i.size, qty: i.qty, index: n })).filter(Boolean);
+const valueOf = items => T.sum(items);
+
+
+const el = (form, k) => form.elements.namedItem(k);
+const phoneOk = v => /^01[3-9]\d{8}$/.test(v);
+/* Bangladesh mobile number: "+88" is fixed in front; the box keeps digits only, starts with 0, and stops at 11 digits. */
+function cleanPhone(v) {
+  let d = String(v || '').replace(/\D/g, '');
+  if (d.startsWith('8801')) d = d.slice(2);     // +8801712... pasted or typed with the country code
+  if (d[0] === '1') d = '0' + d;                // 1712... typed without the leading 0
+  return d.slice(0, 11);
+}
+document.addEventListener('input', e => { const t = e.target; if (t && t.name === 'phone' && t.closest('.phone')) { const c = cleanPhone(t.value); if (c !== t.value) t.value = c; } });
+/* Incomplete orders: once the mobile number is valid, what the visitor typed is saved so the team can follow up if the order is not finished. */
+function watchLead(form, source, getItems) {
+  if (!BG.LEAD_ENDPOINT) return;
+  let token = ''; try { token = sessionStorage.getItem('bg_lead') || ''; } catch (e) {}
+  if (!token) { token = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).toLowerCase(); try { sessionStorage.setItem('bg_lead', token); } catch (e) {} }
+  let timer, last = '';
+  const send = () => {
+    const ph = el(form, 'phone').value; if (!phoneOk(ph) || form.dataset.done) return;
+    const a = T.attribution().last || {}, body = JSON.stringify({ token, source, phone: ph, name: el(form, 'name').value, email: el(form, 'email').value, district: el(form, 'district').value, address: el(form, 'address').value,
+      area: el(form, 'district').value || el(form, 'address').value ? (el(form, 'area').value === 'dhaka' ? 'Inside Dhaka' : 'Outside Dhaka') : '',
+      items: getItems().map(i => ({ slug: i.slug, size: +i.size || 0, qty: i.qty })), tracking: Object.assign({ page_url: location.href, referrer: document.referrer }, a, T.ids()) });
+    if (body === last) return; last = body;
+    try { fetch(BG.LEAD_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: true }).catch(() => {}); } catch (e) {}
+  };
+  const later = () => { clearTimeout(timer); timer = setTimeout(send, 1200); };
+  form.addEventListener('input', later); form.addEventListener('change', later);
+  addEventListener('pagehide', send);
+}
+const rules = {
+  name: v => v.trim().length < 2 ? 'Please enter your name' : '',
+  phone: v => !phoneOk(v) ? 'Enter your 11-digit mobile number, e.g. 01712345678' : '',
+  email: v => v.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) ? 'Enter a valid email or leave it empty' : '',
+  district: v => !v ? 'Please select your district' : '',
+  address: v => v.trim().length < 10 ? 'Please enter your full address' : ''
+};
+const setErr = (f, msg) => { const s = f.closest('.fld').querySelector('.err'); if (s) s.textContent = msg || ''; f.setAttribute('aria-invalid', msg ? 'true' : 'false'); };
+/* On blur only that field is checked (no page jumps while the parent is still filling the form). */
+function bindFields(form) {
+  const keys = Object.keys(rules);
+  const check = k => { const f = el(form, k), m = rules[k](f.value); setErr(f, m); return !m; };
+  keys.forEach(k => { const f = el(form, k); f.addEventListener(f.tagName === 'SELECT' ? 'change' : 'blur', () => (f.value || f.tagName === 'SELECT') && check(k)); });
+  return {
+    firstInvalid: () => { const bad = keys.filter(k => !check(k)); return bad.length ? el(form, bad[0]) : null; },
+    silentValid: () => keys.every(k => !rules[k](el(form, k).value))
+  };
+}
+/* District decides the default delivery area (Dhaka = inside Dhaka); the parent can still change it. */
+function bindDistrict(form) {
+  const d = el(form, 'district');
+  d.addEventListener('change', () => {
+    const r = form.querySelector(`input[name=area][value=${d.value === 'Dhaka' ? 'dhaka' : 'outside'}]`);
+    if (d.value && r && !r.checked) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
+}
+const newId = () => 'BG' + Date.now().toString(36).toUpperCase().slice(-7);
+const areaLabel = a => a === 'dhaka' ? 'Inside Dhaka' : 'Outside Dhaka';
+const custOf = form => ({ name: el(form, 'name').value, phone: el(form, 'phone').value, email: el(form, 'email').value, address: el(form, 'address').value, district: el(form, 'district').value });
+const buildOrder = (form, source, items, area) => {
+  const sub = items.reduce((a, i) => a + i.qty * i.price, 0), del = BG.DELIVERY[area], c = custOf(form);
+  return { id: newId(), source, items, name: c.name.trim(), phone: c.phone.trim(), email: c.email.trim(), country: 'Bangladesh', district: c.district,
+    address: c.address.trim(), area: areaLabel(area), subtotal: sub, delivery: del, total: sub + del, payment: 'Cash on Delivery', page: location.href, time: new Date().toISOString() };
+};
+/* Sends the order to ORDER_ENDPOINT. With no endpoint the site is in demo mode: the order is only kept locally. */
+async function sendOrder(order) {
+  if (BG.ORDER_ENDPOINT) {
+    try {
+      const r = await fetch(BG.ORDER_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(order) });
+      const j = await r.json().catch(() => null);
+      if (j && j.ok) { if (j.total) { order.total = j.total; order.delivery = j.delivery != null ? j.delivery : order.delivery; } return { ok: true }; }
+      return { ok: false, msg: j && j.error };
+    } catch (e) { return { ok: false }; }
+  }
+  try { const k = 'bg_demo_orders', all = JSON.parse(localStorage.getItem(k) || '[]'); all.push(order); localStorage.setItem(k, JSON.stringify(all)); } catch (e) {}
+  return { ok: true, demo: true };
+}
+const SEND_ERR = "Sorry, we couldn't place your order. Please check your connection and try again, or call us.";
+function sendFailed(res) { const e = $('#sendErr'); e.textContent = res.msg || SEND_ERR; e.hidden = false; $('#submitBtn').disabled = false; e.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+function showDone(order) {
+  $('#oid').textContent = '#' + order.id;
+  $('#rItems').textContent = order.items.map(i => `${i.product} — EU ${i.size} × ${i.qty}`).join('\n');
+  $('#rA').textContent = order.address + ', ' + order.district + ' (' + order.area + ')';
+  $('#rT').textContent = fmt(order.total); $('#rPh').textContent = order.phone;
+  $('#demoNote').hidden = !!BG.ORDER_ENDPOINT;
+  $('#done').hidden = false; $('#done').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+const fillCharges = () => { const d = $('#chD'), o = $('#chO'); if (d) d.textContent = fmt(BG.DELIVERY.dhaka); if (o) o.textContent = fmt(BG.DELIVERY.outside); };
+
+
+
+/* ---------- the funnel events that need customer data (hashed once, in tracking.js) ---------- */
+const fired = new Set();
+async function stageEvent(name, cust, items, area, extra) {
+  const cd = await T.customerData(cust), its = itemsOf(items), value = valueOf(its), del = BG.DELIVERY[area];
+  const payload = Object.assign({ user_data: cd.user_data, meta_user_data: cd.meta_user_data }, T.ids(), extra || {});
+  const ecommerce = { value, items: its };
+  if (name === 'add_shipping_info') ecommerce.shipping_tier = areaLabel(area);
+  if (name === 'add_payment_info') { ecommerce.payment_type = 'Cash on Delivery'; ecommerce.shipping_tier = areaLabel(area); }
+  if (name === 'purchase') { ecommerce.transaction_id = payload.transaction_id; ecommerce.shipping = del; ecommerce.tax = 0; }
+  return T.ecom(name, ecommerce, payload);
+}
+/* The same details go into the order so the server (Conversions API) can send the matching Purchase with the same event_id. */
+async function trackingBlock(cust, order) {
+  const cd = await T.customerData(cust);
+  return Object.assign({ event_id: 'purchase_' + order.id, user_agent: navigator.userAgent, page_url: location.href, referrer: document.referrer, user_data: cd.user_data, meta_user_data: cd.meta_user_data, attribution: T.attribution() }, T.ids());
+}
+function watchShipping(form, fields, getItems, area) {
+  const go = () => { if (fired.has('ship') || !fields.silentValid()) return; fired.add('ship'); stageEvent('add_shipping_info', custOf(form), getItems(), area()); };
+  ['address', 'district', 'phone'].forEach(k => el(form, k).addEventListener(el(form, k).tagName === 'SELECT' ? 'change' : 'blur', go));
+}
+
+/* =====================================================================
+   LANDING PAGE: choose several colours and sizes, add to cart, one checkout
+   ===================================================================== */
+const imgsOf = s => (PR[s] && PR[s].images && PR[s].images.length) ? PR[s].images : [PR[s].img];
+const BAG = '<svg class="ic" aria-hidden="true"><use href="#i-bag"/></svg>';
+const cardHTML = (s, p) => {
+  const pr = priceOf(s), l = listOf(s), usd = usdOf(s), ims = imgsOf(s), all = sizesOf(s) || [], out = outOf(s), sold = soldOut(s), low = p.low || {};
+  const chips = all.map(n => { const o = out.includes(n), lw = low[n] ? ` title="Only ${low[n]} left"` : (o ? ' title="Sold out"' : ''); return `<label class="szc${o ? ' out' : ''}${low[n] ? ' low' : ''}"${lw}><input type="radio" name="sz-${esc(s)}" value="${n}"${o ? ' disabled' : ''}><span>${n}</span></label>`; }).join('');
+  return `<article class="pc${sold ? ' is-sold' : ''}" id="p-${esc(s)}" data-slug="${esc(s)}">
+  <div class="pc-img"><span class="sw" style="background:${esc(p.colorHex || '#24babc')}"></span><span class="pc-in"></span><img class="pc-main" src="${esc(ims[0])}" alt="${esc(p.title)}" loading="lazy">
+    ${ims.length > 1 ? `<div class="thumbs">${ims.map((u, i) => `<button type="button" class="th${i ? '' : ' on'}" data-img="${esc(u)}" aria-label="Photo ${i + 1}"><img src="${esc(u)}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}</div>
+  <div class="pc-body"><h3>${esc(p.title.replace(/^Babyglee\s+/, ''))}</h3>
+    <div class="pc-price">${l > pr ? `<s>${fmt(l)}</s> ` : ''}<b>${fmt(pr)}</b>${l > pr ? `<span class="off">Save ${Math.round((l - pr) / l * 100)}%</span>` : ''}</div>
+    ${usd ? `<p class="usd-line">US$${usd} <span>international price</span></p>` : ''}
+    <fieldset class="pc-sizes"><legend>Size (EU) <button type="button" class="lnk" data-open-size>Size guide</button></legend><div class="szs">${chips}</div><small class="err"></small></fieldset>
+    <div class="pc-buy"><div class="qty"><button type="button" data-q="-1" aria-label="Decrease quantity">−</button><output>1</output><button type="button" data-q="1" aria-label="Increase quantity">+</button></div>
+      ${sold ? '<button class="btn" type="button" disabled>Sold out</button>' : `<button class="btn" type="button" data-add>${BAG} Add to cart</button>`}</div>
+    <p class="pc-msg" role="status"></p></div></article>`;
+};
+const stars = n => '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n);
+
+/* ---------- cart ---------- */
+const KEY = 'bg_cart';
+const loadCart = () => { try { const c = JSON.parse(localStorage.getItem(KEY) || '[]'); return (Array.isArray(c) ? c : []).filter(i => PR[i.slug] && i.size && i.qty > 0).map(i => ({ ...i, k: i.slug + '|' + i.size })); } catch (e) { return []; } };
+let cart = loadCart();
+const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(cart.map(({ slug, size, qty }) => ({ slug, size, qty })))); } catch (e) {} };
+const count = () => cart.reduce((a, i) => a + i.qty, 0);
+const subtotal = () => cart.reduce((a, i) => a + i.qty * priceOf(i.slug), 0);
+const toOrderItems = list => list.map(i => ({ product: PR[i.slug].title, slug: i.slug, size: i.size, qty: i.qty, price: priceOf(i.slug) }));
+
+const lineHTML = (i, edit) => {
+  const p = PR[i.slug];
+  return `<div class="cl" data-k="${i.k}"><img src="${p.img}" alt="" loading="lazy">
+    <div class="cl-i"><b>${p.title}</b><small>Size EU ${i.size}</small>
+    ${edit ? `<div class="qty sm"><button type="button" data-act="dec" aria-label="Decrease quantity">−</button><output>${i.qty}</output><button type="button" data-act="inc" aria-label="Increase quantity">+</button></div>` : `<small>Qty ${i.qty}</small>`}</div>
+    <div class="cl-p"><b>${fmt(i.qty * priceOf(i.slug))}</b>${edit ? '<button type="button" class="rm" data-act="rm">Remove</button>' : ''}</div></div>`;
+};
+
+let onCartChange = () => {};
+function refresh() {
+  const n = count();
+  $$('.js-cart-count').forEach(c => { c.textContent = n; c.classList.toggle('on', n > 0); });
+  const bar = $('#cartBar');
+  if (bar) { bar.hidden = n === 0; $('#cbCount').textContent = n + (n === 1 ? ' pair' : ' pairs'); $('#cbTotal').textContent = fmt(subtotal()); document.body.classList.toggle('has-cartbar', n > 0); }
+  $$('.pc').forEach(c => { const q = cart.filter(i => i.slug === c.dataset.slug).reduce((a, i) => a + i.qty, 0), b = $('.pc-in', c); if (b) b.textContent = q ? q + ' in cart' : ''; });
+  onCartChange();
+}
+function change(k, d) {
+  const i = cart.find(x => x.k === k); if (!i) return;
+  if (d < 0) T.ecom('remove_from_cart', { value: priceOf(i.slug), items: [T.item(i.slug, { size: i.size, qty: 1 })] });
+  i.qty += d; if (i.qty < 1) cart = cart.filter(x => x !== i); else i.qty = Math.min(10, i.qty);
+  persist(); refresh();
+}
+function removeLine(k) {
+  const i = cart.find(x => x.k === k); if (!i) return;
+  T.ecom('remove_from_cart', { value: priceOf(i.slug) * i.qty, items: [T.item(i.slug, { size: i.size, qty: i.qty })] });
+  cart = cart.filter(x => x !== i); persist(); refresh();
+}
+function addToCart(slug, size, qty) {
+  const k = slug + '|' + size, ex = cart.find(i => i.k === k);
+  if (ex) ex.qty = Math.min(10, ex.qty + qty); else cart.push({ k, slug, size, qty: Math.min(10, qty) });
+  persist(); refresh();
+  T.ecom('add_to_cart', { value: priceOf(slug) * qty, items: [T.item(slug, { size, qty })] });
+}
+
+
+if (page === 'landing') {
+  /* hero price follows the admin catalogue */
+  const slugsAll = Object.keys(PR);
+  if (slugsAll.length) { const pt = $('.hero .price-tag'); if (pt) { const lo = Math.min(...slugsAll.map(priceOf)), hi = Math.max(...slugsAll.map(listOf)); $('b', pt).textContent = fmt(lo); const s = $('s', pt); s.textContent = fmt(hi); s.hidden = !(hi > lo); } const un = $('.hero .usd-note b'); if (un) un.textContent = 'US$' + Math.max(...slugsAll.map(usdOf)); }
+  const grid = $('#grid'), slugs = slugsAll, listId = 'landing', listName = 'Landing - Bounce series';
+  grid.innerHTML = slugs.length ? slugs.map(s => cardHTML(s, PR[s])).join('') : '<p class="empty-note">No products are available right now. Please check back soon.</p>';
+  $$('.pc', grid).forEach(c => { const b = $('[data-open-size]', c); b.sizeTarget = eu => { const r = $(`input[value="${eu}"]`, c); if (r && !r.disabled) { r.checked = true; $('.err', c).textContent = ''; } }; });
+  const touched = new Set();
+  const touch = c => { const s = c.dataset.slug; if (touched.has(s)) return; touched.add(s); T.ecom('select_item', { item_list_id: listId, item_list_name: listName, items: [T.item(s, { index: slugs.indexOf(s), listId, listName })] }); };
+  grid.addEventListener('click', e => {
+    const c = e.target.closest('.pc'); if (!c) return; const s = c.dataset.slug;
+    const th = e.target.closest('.th'); if (th) { $('.pc-main', c).src = th.dataset.img; $$('.th', c).forEach(x => x.classList.toggle('on', x === th)); touch(c); return; }
+    const q = e.target.closest('[data-q]'); if (q) { const o = $('.qty output', c); o.textContent = Math.max(1, Math.min(10, +o.textContent + +q.dataset.q)); touch(c); return; }
+    if (!e.target.closest('[data-add]')) return;
+    const r = $('input:checked', c);
+    if (!r) { $('.err', c).textContent = 'Please select a size'; const b = $('.szs', c); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
+    const o = $('.qty output', c), n = +o.textContent, size = +r.value;
+    addToCart(s, size, n); touch(c);
+    o.textContent = '1'; r.checked = false;
+    const btn = $('[data-add]', c); btn.classList.add('added'); btn.innerHTML = 'Added ✓'; setTimeout(() => { btn.classList.remove('added'); btn.innerHTML = BAG + ' Add to cart'; }, 1400);
+    $('.pc-msg', c).innerHTML = `EU ${size} × ${n} added. <a href="checkout.html">Checkout</a> or pick another size or colour.`;
+  });
+  grid.addEventListener('change', e => { if (!e.target.matches('input[type=radio]')) return; const c = e.target.closest('.pc'); $('.err', c).textContent = ''; touch(c); T.push({ event: 'select_size', item_id: PR[c.dataset.slug].sku, size: 'EU ' + e.target.value }); });
+  const sendList = () => T.ecom('view_item_list', { item_list_id: listId, item_list_name: listName, items: slugs.map((s, n) => T.item(s, { index: n, listId, listName })) });
+  if ('IntersectionObserver' in window) { const o = new IntersectionObserver(es => { if (es[0].isIntersecting) { sendList(); o.disconnect(); } }, { threshold: .15 }); o.observe(grid); } else sendList();
+  T.ecom('view_item', { value: priceOf(slugs[0] || ''), items: slugs.length ? [T.item(slugs[0])] : [] }, { page_type: 'landing', note: 'landing_view' });
+
+  /* inside-every-Bounce hotspots: tap a number or a row to highlight both */
+  const hl = i => $$('.hs,.anat-list li').forEach(x => x.classList.toggle('on', x.dataset.i === String(i)));
+  $$('.hs,.anat-list li').forEach(x => { x.addEventListener('click', () => hl(x.dataset.i)); x.addEventListener('mouseenter', () => hl(x.dataset.i)); });
+
+  /* reviews: real customer reviews added in the admin panel (text or screenshot); the section stays hidden when there are none */
+  if (RV.length) {
+    const avg = RV.reduce((a, r) => a + (+r.rating || 5), 0) / RV.length;
+    $('#reviews').hidden = false; const nv = $('#navReviews'); if (nv) nv.hidden = false;
+    $('#rvSum').innerHTML = `<span class="stars">${stars(Math.round(avg))}</span> <b>${avg.toFixed(1)}</b> out of 5 from ${RV.length} review${RV.length > 1 ? 's' : ''}`;
+    $('#rvTrack').innerHTML = RV.map(r => r.img
+      ? `<figure class="rvc shot"><button type="button" data-shot="${esc(r.img)}" aria-label="Open review screenshot"><img src="${esc(r.img)}" alt="Review by ${esc(r.name)}" loading="lazy"></button><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}<span class="stars">${stars(+r.rating || 5)}</span>${r.text ? `<p>${esc(r.text)}</p>` : ''}</figcaption></figure>`
+      : `<figure class="rvc"><span class="stars">${stars(+r.rating || 5)}</span><p>“${esc(r.text)}”</p><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}</figcaption></figure>`).join('');
+    $('#rvTrack').addEventListener('click', e => { const b = e.target.closest('[data-shot]'); if (!b) return; $('#shotImg').src = b.dataset.shot; lastFocus = b; openSheet($('#shotBox')); });
+  }
+}
+
+/* =====================================================================
+   CHECKOUT (page 2): everything in the cart, one set of details, Cash on Delivery
+   ===================================================================== */
+if (page === 'checkout') {
+  const form = $('#coForm'); fillCharges();
+  const area = () => el(form, 'area').value, lines = () => cart;
+  const draw = () => {
+    const l = lines(), sub = subtotal(), del = l.length ? BG.DELIVERY[area()] : 0;
+    $('#coLines').innerHTML = l.map(i => lineHTML(i, true)).join('');
+    $('#sSub').textContent = fmt(sub); $('#sDel').textContent = fmt(del); $('#sTot').textContent = fmt(sub + del); $('#sumTop').textContent = fmt(sub + del);
+    $('#submitBtn').textContent = 'Place order — ' + fmt(sub + del);
+    $('#coGrid').hidden = !l.length; $('#coEmpty').hidden = !!l.length;
+  };
+  onCartChange = draw; form.addEventListener('change', draw); draw();
+  $('#coLines').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; const k = b.closest('.cl').dataset.k, a = b.dataset.act; a === 'inc' ? change(k, 1) : a === 'dec' ? change(k, -1) : removeLine(k); });
+  if (matchMedia('(max-width:980px)').matches) $('#sumD').open = false;
+  if (cart.length) { T.ecom('view_cart', { value: subtotal(), items: itemsOf(cart) }); T.ecom('begin_checkout', { value: subtotal(), items: itemsOf(cart) }, { page_type: 'checkout' }); }
+  const fields = bindFields(form); bindDistrict(form);
+  watchShipping(form, fields, lines, area); watchLead(form, 'landing', lines);
+  let sending = false;
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (sending || !cart.length) return;
+    const bad = fields.firstInvalid();
+    if (bad) { bad.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    sending = true; $('#submitBtn').disabled = true; $('#sendErr').hidden = true;
+    const cust = custOf(form), order = buildOrder(form, 'landing', toOrderItems(lines()), area());
+    order.tracking = await trackingBlock(cust, order);
+    await stageEvent('add_payment_info', cust, lines(), area());
+    const res = await sendOrder(order);
+    if (!res.ok) { sending = false; sendFailed(res); return; }
+    form.dataset.done = '1'; try { sessionStorage.removeItem('bg_lead'); } catch (e) {}
+    const keep = Object.assign({}, order, { demo: !BG.ORDER_ENDPOINT }); delete keep.tracking;
+    try { sessionStorage.setItem('bg_last_order', JSON.stringify(keep)); } catch (e) {}
+    cart = []; persist();
+    location.href = 'thank-you.html';
+  });
+}
+
+/* =====================================================================
+   THANK YOU (page 3): order summary; the Purchase event fires here once per order
+   ===================================================================== */
+if (page === 'thanks') {
+  let o = null; try { o = JSON.parse(sessionStorage.getItem('bg_last_order') || 'null'); } catch (e) {}
+  if (!o || !o.id) $('#noOrder').hidden = false;
+  else {
+    $('#done').hidden = false; $('#oid').textContent = '#' + o.id;
+    $('#rItems').textContent = o.items.map(i => `${i.product} — EU ${i.size} × ${i.qty}`).join('\n');
+    $('#rA').textContent = o.address + ', ' + o.district + ' (' + o.area + ')'; $('#rT').textContent = fmt(o.total); $('#rPh').textContent = o.phone;
+    $('#demoNote').hidden = !o.demo;
+    const k = 'bg_purchased'; let done = []; try { done = JSON.parse(sessionStorage.getItem(k) || '[]'); } catch (e) {}
+    if (!done.includes(o.id)) {
+      const areaKey = o.area === 'Inside Dhaka' ? 'dhaka' : 'outside';
+      stageEvent('purchase', { name: o.name, phone: o.phone, email: o.email, address: o.address, district: o.district }, o.items, areaKey, { event_id: 'purchase_' + o.id, transaction_id: o.id, order_total: o.total, order_source: 'landing', payment_type: 'Cash on Delivery', shipping_tier: o.area });
+      try { done.push(o.id); sessionStorage.setItem(k, JSON.stringify(done)); } catch (e) {}
+    }
+  }
+}
+
+/* floating WhatsApp: pre-filled with what the visitor is looking at */
+const wa = $('#waFab');
+if (wa) wa.href = `https://wa.me/${BG.WHATSAPP}?text=` + encodeURIComponent('Hi Babyglee, I need help with: ' + document.title.replace(/\s*[—|-]\s*Babyglee.*$/, ''));
+document.addEventListener('click', e => { const a = e.target.closest('a[href*="wa.me"]'); if (a) T.push({ event: 'whatsapp_click', page_type: PAGE_TYPES[page] || 'info', link_location: a.id === 'waFab' ? 'floating_button' : 'page_link' }); });
+refresh();
+})();
