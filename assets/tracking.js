@@ -50,7 +50,11 @@
     attr.last = seen; lsSet('bg_attr', attr);
   }
   /* _fbc from fbclid when the Pixel has not set it yet (format: fb.1.<timestamp ms>.<fbclid>) */
-  if (seen.fbclid && !getCookie('_fbc')) setCookie('_fbc', 'fb.1.' + Date.now() + '.' + seen.fbclid, 90);
+  /* A new ad click (a different fbclid) replaces the old _fbc, so the order is credited to the latest click. Case of the fbclid is kept exactly as Meta sent it. */
+  if (seen.fbclid) {
+    var curFbc = getCookie('_fbc');
+    if (!curFbc || curFbc.split('.').slice(3).join('.') !== seen.fbclid) setCookie('_fbc', 'fb.1.' + Date.now() + '.' + seen.fbclid, 90);
+  }
 
   /* ---------- SHA-256 (hex) with a pure-JS fallback for non-secure contexts ---------- */
   var SHA_K = null, SHA_H = null;
@@ -173,7 +177,8 @@
     push(o); return o.event_id;
   }
   function pageData(type, section) {
-    push({ event: 'page_data', page_type: type, site_section: section, currency: CUR, country: 'BD', language: 'en', store: 'babyglee', visitor: ids() });
+    /* event_id here is the shared ID for PageView: use it in both the browser Pixel tag and the server tag so Meta counts one PageView */
+    push({ event: 'page_data', event_id: eventId('page'), event_time: Math.floor(Date.now() / 1000), event_source_url: location.href, external_id: uid, fbp: getCookie('_fbp'), fbc: getCookie('_fbc'), page_type: type, site_section: section, currency: CUR, country: 'BD', language: 'en', store: 'babyglee', visitor: ids() });
   }
 
   /* ---------- debug overlay: add ?bgdebug=1 to any URL to see every dataLayer push on screen ---------- */

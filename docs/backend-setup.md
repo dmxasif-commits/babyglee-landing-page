@@ -53,6 +53,8 @@ Use **HTTPS** (cPanel → SSL/TLS Status → AutoSSL). The admin login cookie is
   The order history shows who confirmed or cancelled each order, and the dashboard counts it per person. Switch an account off when someone leaves.
 - **Manual orders:** Orders → *+ New order* for orders taken by phone or in a Facebook / WhatsApp / Instagram inbox.
 - **Ad spend:** Ads → Campaign → *Ad spend*. Type what you spent per campaign (same name as the campaign in the table); you get cost per order, ROAS and net after ads.
+- **Admin login:** the first admin account is created on the first visit to `/admin/` (type the setup key, a username and a password of 10+ characters). The username can be an email address (letters, numbers and `. _ - + @`, up to 40 characters; capital letters are ignored when logging in). Do not put the address or password in the repository or in `api/config.php`.
+- **Server GTM Purchase:** Settings → *Server GTM backup for Purchase*. Paste the Measurement Protocol URL of your server container. The server then sends the Purchase of orders you confirm from Incomplete (or of every order, if you choose that) with the same ID as the browser event. See `docs/meta-tracking.md`.
 - **Backup:** Settings → *Download backup (JSON)*. Do it regularly (it contains customer details, keep it private).
   Also use cPanel → *Backup* for a full database backup.
 

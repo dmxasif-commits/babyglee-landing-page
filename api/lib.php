@@ -6,7 +6,7 @@ date_default_timezone_set('Asia/Dhaka');
 const BG_STATUSES = ['pending' => 'Pending', 'confirmed' => 'Confirmed', 'shipped' => 'Shipped', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled', 'returned' => 'Returned'];
 const BG_SIZES = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36];
 const BG_DEFAULTS = ['whatsapp' => '8801974974973', 'delivery_dhaka' => '80', 'delivery_outside' => '130', 'gtm_id' => '', 'gtm_src' => '',
-    'meta_pixel_id' => '', 'meta_capi_token' => '', 'meta_test_code' => '', 'meta_api_version' => 'v23.0',
+    'meta_pixel_id' => '', 'meta_capi_token' => '', 'meta_test_code' => '', 'meta_api_version' => 'v23.0', 'sgtm_mp_url' => '', 'sgtm_mode' => 'recovered',
     'biz_name' => 'Babyglee', 'biz_phone' => '+880 1974-974973', 'biz_address' => 'Pallabi, Mirpur 12, Dhaka', 'invoice_note' => 'Exchange within 72 hours of delivery. Thank you for shopping with Babyglee!'];
 
 function cfg(): array {

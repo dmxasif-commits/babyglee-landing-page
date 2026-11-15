@@ -25,6 +25,9 @@ $tracking = [];
 foreach (['fbp', 'fbc', 'fbclid', 'gclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'page_url', 'referrer'] as $k) {
     if (isset($trIn[$k]) && is_scalar($trIn[$k])) $tracking[$k] = mb_substr((string) $trIn[$k], 0, 500);
 }
+/* ID of the browser visitor and the Google Analytics cookie: kept so a Purchase created later from this incomplete order can still be matched to the visitor. */
+if (isset($trIn['external_id']) && preg_match('/^[0-9a-f-]{8,64}$/', (string) $trIn['external_id'])) $tracking['uid'] = $trIn['external_id'];
+if (isset($trIn['ga']) && is_scalar($trIn['ga']) && preg_match('/^GA\d\.\d\.\d+\.\d+$/', (string) $trIn['ga'])) $tracking['ga'] = (string) $trIn['ga'];
 $area = stripos((string) ($in['area'] ?? ''), 'inside') !== false ? 'Inside Dhaka' : (($in['area'] ?? '') !== '' ? 'Outside Dhaka' : '');
 $source = ($in['source'] ?? '') === 'landing' ? 'landing' : 'store';
 $row = [$source, $str('name', 120), '+' . $phone, $str('email', 160), $str('district', 60), $str('address', 600), $area,

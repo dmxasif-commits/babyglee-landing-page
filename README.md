@@ -29,6 +29,19 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-16: Tracking reliability (from the tracking review)
+- Incomplete orders: a save counts as done only after the backend answers ok; network errors and 5xx/408/429 are retried (2, 5, 15, 40 s); the page-leave save uses `sendBeacon`; the `generate_lead` event is sent after the first confirmed save.
+- `view_item_list` now fires when the first product card shows (it could never fire on a 320x568 phone before).
+- `_fbc` is replaced when a new ad click (different `fbclid`) arrives; case and format are kept. `page_data` now carries a shared `event_id` for PageView de-duplication; `whatsapp_click` has an `event_id` and identifiers.
+- Purchase: built from the accepted order (items, prices, shipping, total returned by `api/order.php`); marked as reported only after it is pushed; demo orders send no Purchase (`localStorage.bg_track_demo = '1'` to test); checkout never waits more than 2 s for tracking.
+- Server-side Purchase delivery: `dispatch_purchase()` for web orders and for orders confirmed from Admin → Incomplete (previously none). Optional server GTM Measurement Protocol URL and mode (recovered / every order / never) in Admin → Settings; Meta value is now the product value, as in the browser event; the order stores the visitor ID (`uid`) and GA client cookie.
+- Cart: "+" inside the cart sends `add_to_cart`; adding beyond 10 pairs of a size reports only the pairs added (none at the limit, with a message); the shipping step also fires when the name is the last field completed.
+- Admin: the username can be an email address.
+- Docs: `docs/meta-tracking.md` (trigger/tag mapping, external ID, Lead meaning, Purchase reliability) and `docs/backend-setup.md`.
+- Tests: 28 new browser checks, 18 new backend checks (mock Meta and server GTM receivers) + 35 demo + 52 backend + 12 dataLayer + 43 size + 65 small-screen pass. Not tested: a real GTM container, Meta delivery, real EMQ.
+- Backup before this change: `backups/site-2026-11-16-before-tracking-reliability.zip`.
+- Files: `assets/main.js`, `assets/tracking.js`, `api/capi.php`, `api/order.php`, `api/lead.php`, `api/lib.php`, `admin/index.php`, `docs/`.
+
 ### 2026-11-15: Small screens, short screens and landscape
 - Hero: the background circle no longer covers the heading, price or note (it is sized to the picture area); on short and landscape screens the layout is tighter (landscape phones use two columns). The WhatsApp button hides while the hero buttons are on screen and returns when you scroll.
 - Checkout at 320px (and down to 300px): the form and the expanded "Order summary" no longer widen the page (grid columns and inputs can shrink; summary lines stack on very small phones).
