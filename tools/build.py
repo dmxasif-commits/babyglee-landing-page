@@ -58,12 +58,24 @@ def age_band(eu):
     if eu <= 32: return "≈ 6–8 yrs"
     return "≈ 8–10 yrs"
 
+SIZE_CHART = [(21, 13.5, "12–18M"), (22, 14.0, "18–24M"), (23, 14.5, "2Y"), (24, 15.0, "2.5Y"), (25, 15.5, "3Y"), (26, 16.0, "3.5Y"), (27, 16.5, "4Y"), (28, 17.0, "4.5Y"),
+              (29, 17.5, "5Y"), (30, 18.0, "5.5Y"), (31, 18.6, "6Y"), (32, 19.2, "6.5Y"), (33, 19.7, "7Y"), (34, 20.4, "8Y"), (35, 21.2, "9Y"), (36, 22.0, "10–12Y")]  # insole cm; foot = insole - 1
+
+def finder(p, use=False):
+    """Size finder block: measuring steps, centimetre entry, result. Ids start with the prefix p (sz = size sheet, fs = page section)."""
+    return f"""<ol class="mstep"><li>Stand your child on a sheet of paper, heel against a wall.</li><li>Mark the tip of the longest toe, then measure from the wall to the mark.</li><li>Type the length below. We add 1 cm for growing room.</li></ol>
+      <label class="sl" for="{p}Cm">Foot length in cm</label>
+      <div class="cm-row"><input type="number" id="{p}Cm" inputmode="decimal" min="8" max="25" step="0.1" placeholder="e.g. 15" autocomplete="off"><span>cm</span></div>
+      <label class="wide"><input type="checkbox" id="{p}Wide"> Wide feet or thick socks (one size up)</label>
+      <div class="size-res" id="{p}Res"><span>Suggested size</span><b id="{p}Out">EU —</b><em id="{p}Age">Enter a length</em></div>
+      <p class="fine" id="{p}Note">Insole length = foot length + 1 cm. Example: a 15 cm foot needs a 16 cm insole, which is EU 26.</p>
+      {'<button class="btn block" type="button" id="szUse" hidden>Select this size</button>' if use else ''}"""
+
 def size_table():
-    rows = "".join(
-        f"<tr data-eu=\"{eu}\"><td><b>EU {eu}</b></td><td>{eu/1.5-1.5:.1f} cm</td><td>{age_band(eu)}</td></tr>" for eu in range(21, 37))
-    return (f'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Shoe size</th><th>Foot length</th><th>Age (approx.)</th></tr></thead>'
+    rows = "".join(f"<tr data-eu=\"{eu}\"><td><b>EU {eu}</b></td><td>{ins-1:.1f} cm</td><td>{ins:.1f} cm</td><td>{age}</td></tr>" for eu, ins, age in SIZE_CHART)
+    return (f'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Shoe size</th><th>Foot length</th><th>Insole</th><th>Age</th></tr></thead>'
             f'<tbody>{rows}</tbody></table></div>'
-            '<p class="fine">Measure from heel to the longest toe. Sizes are approximate, so our team also confirms the size with you by call or message before shipping.</p>')
+            '<p class="fine">Pick the size whose insole is your child\'s foot length + 1 cm. For wide feet or thick socks, go one size up. Our team also confirms the size with you by call or message before shipping.</p>')
 
 # ---------- shared chrome ----------
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2324babc'/%3E"
@@ -226,13 +238,10 @@ def footer(landing=False):
     sheets = f"""<div class="sheet-wrap" id="sizeModal" hidden>
   <div class="sheet-scrim" data-close></div>
   <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="szTitle">
-    <header><h3 id="szTitle">Size guide</h3><button class="icon-btn" type="button" data-close aria-label="Close size guide">{ic("close")}</button></header>
+    <header><h3 id="szTitle">Find the right size</h3><button class="icon-btn" type="button" data-close aria-label="Close size guide">{ic("close")}</button></header>
     <div class="sheet-body">
-      <p class="sub">Measure your child's foot from heel to longest toe, then slide to match.</p>
-      <label class="sl" for="szCm">Foot length: <b id="szCmOut">14.0</b> cm</label>
-      <input type="range" id="szCm" min="12" max="23" step="0.5" value="14">
-      <div class="size-res"><span>Suggested size</span><b id="szOut">EU 23</b><em id="szAge">≈ 1–2 yrs</em></div>
-      <button class="btn block" type="button" id="szUse" hidden>Select this size</button>
+      <h4 class="sheet-h first">How to measure</h4>
+      {finder("sz", True)}
       <h4 class="sheet-h">All sizes</h4>
       {size_table()}
     </div>
@@ -255,7 +264,7 @@ def footer(landing=False):
   </section>
 </div>
 """ if landing else ""
-    cartfab = f"""<button class="fab fab-cart" id="cartFab" type="button" aria-label="View cart" hidden>{ic("bag")}<i class="js-cart-count">0</i></button>
+    cartfab = f"""<div class="cartbar" id="cartBar" hidden><button class="cb-view" id="cbView" type="button" aria-label="View cart">{ic("bag")}<i class="js-cart-count">0</i></button><a class="btn" id="cbGo" href="checkout.html">Checkout</a></div>
 """ if landing else ""
     return f"""</main>
 <footer class="ftr">
@@ -345,11 +354,7 @@ def page_index():
 <section class="sec alt" id="size"><div class="wrap size-box">
   <div>
     <span class="eyebrow">Size guide</span><h2>Find the right size in seconds</h2>
-    <p class="sub">Measure your child's foot from heel to longest toe, then slide to match.</p>
-    <label class="sl" for="cm">Foot length: <b id="cmOut">14.0</b> cm</label>
-    <input type="range" id="cm" min="12" max="23" step="0.5" value="14">
-    <div class="size-res"><span>Suggested size</span><b id="sizeOut">EU 23</b><em id="ageOut">≈ 1–2 yrs</em></div>
-    <p class="fine">Approximate. We also confirm the size with you by call or message before shipping.</p>
+    {finder("fs")}
   </div>
   <div class="size-tbl">{size_table()}</div>
 </div></section>
