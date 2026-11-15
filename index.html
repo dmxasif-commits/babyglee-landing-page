@@ -28,10 +28,10 @@
   <a class="brand" href="index.html" aria-label="Babyglee home"><img src="img/logo.webp" alt="Babyglee — Because we love them!" width="117" height="87"></a>
   <nav class="nav" id="nav" aria-label="Main"><a href="#shop">Shop</a><a href="#why">Why Babyglee</a><a href="#size">Size guide</a><a href="#reviews" id="navReviews" hidden>Reviews</a><a href="#faq">FAQ</a><a class="btn sm nav-cta" href="#shop">Shop now</a></nav>
   <div class="ship" id="ship">
-    <button class="ship-btn" id="shipBtn" aria-expanded="false" aria-controls="shipMenu"><span class="cc-code">BD</span><span class="ship-t"><small>Shipping to</small>Bangladesh<span class="cur"> · ৳ BDT</span></span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+    <button class="ship-btn" id="shipBtn" aria-expanded="false" aria-controls="shipMenu"><span class="flag-bd" role="img" aria-label="Bangladesh flag"></span><span class="ship-t"><small>Shipping to</small>Bangladesh<span class="cur"> · ৳ BDT</span></span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
     <div class="ship-menu" id="shipMenu" hidden>
       <p class="sm-h">Shipping destination</p>
-      <div class="sm-opt on"><span class="cc-code">BD</span><b>Bangladesh</b><svg class="ic " aria-hidden="true"><use href="#i-check"/></svg></div>
+      <div class="sm-opt on"><span class="flag-bd" role="img" aria-label="Bangladesh flag"></span><b>Bangladesh</b><svg class="ic " aria-hidden="true"><use href="#i-check"/></svg></div>
       <p class="sm-n">Prices are in Bangladeshi taka (৳ BDT). The international price in USD is shown for reference.</p>
       <ul class="sm-l"><li><svg class="ic " aria-hidden="true"><use href="#i-truck"/></svg> Home delivery</li><li><svg class="ic " aria-hidden="true"><use href="#i-cash"/></svg> Cash on Delivery</li><li><svg class="ic " aria-hidden="true"><use href="#i-exchange"/></svg> 72-hour exchange</li></ul>
     </div>
@@ -107,7 +107,6 @@
 <section class="sec" id="faq"><div class="wrap narrow"><div class="sec-head"><span class="eyebrow">FAQ</span><h2>Quick answers</h2></div><div class="faq"><details><summary>How do I order?</summary><p>Choose a size for each colour you like, add them to your cart, then check out once with your delivery details. We call you to confirm your sizes and delivery before shipping.</p></details><details><summary>Can I buy more than one pair or more than one colour?</summary><p>Yes. Add as many pairs, colours and sizes as you like to the cart and pay for them in a single checkout.</p></details><details><summary>Can I pay on delivery?</summary><p>Yes. Cash on Delivery is available on every order. You pay in taka when your parcel arrives.</p></details><details><summary>What if the size doesn't fit?</summary><p>You can exchange within 72 hours of delivery. Delivery and return charges apply. See our Shipping &amp; Returns page.</p></details><details><summary>Which sizes do you have?</summary><p>The Bounce series comes in EU sizes 21 to 36, suitable for roughly ages 1 to 10. Use the size guide to match your child's foot length.</p></details><details><summary>Are the shoes safe for kids?</summary><p>They are made from microfiber synthetic leather and breathable mesh, with chemical limits for REACH, phthalates and azo dyes.</p></details><details><summary>Where do you deliver?</summary><p>We currently deliver to homes across Bangladesh, inside and outside Dhaka.</p></details></div></div></section>
 <section class="cta-band"><div class="wrap"><h2>Ready to bounce?</h2><p>Free to look, easy to order, pay when it arrives.</p>
   <div class="cta center"><a class="btn lg" href="#shop">Choose your pair</a><a class="btn lg wa" href="https://wa.me/8801974974973" target="_blank" rel="noopener"><svg class="ic " aria-hidden="true"><use href="#i-whatsapp"/></svg> Ask on WhatsApp</a></div></div></section>
-<div class="cartbar" id="cartBar" hidden><div class="cb-info"><svg class="ic " aria-hidden="true"><use href="#i-bag"/></svg><div><b id="cbCount">0 pairs</b><span id="cbTotal">৳0</span></div></div><a class="btn" href="checkout.html">Checkout →</a></div>
 </main>
 <footer class="ftr">
   <div class="wrap ftr-grid">
@@ -119,7 +118,7 @@
     </div>
     <div><h4>Shop</h4><a href="index.html#shop">The Bounce series</a><a href="index.html#size">Size guide</a><a href="index.html#faq">FAQ</a></div>
     <div><h4>Company</h4><a href="shipping-returns.html">Shipping &amp; returns</a><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms &amp; conditions</a></div>
-    <div><h4>Get in touch</h4>
+    <div class="ftr-contact"><h4>Get in touch</h4>
       <a href="https://wa.me/8801974974973"><svg class="ic " aria-hidden="true"><use href="#i-whatsapp"/></svg> +880 1974-974973</a>
       <a href="mailto:info@babygleebd.com"><svg class="ic " aria-hidden="true"><use href="#i-mail"/></svg> info@babygleebd.com</a>
       <span class="ln"><svg class="ic " aria-hidden="true"><use href="#i-pin"/></svg> Dhaka office: Pallabi, Mirpur 12</span>
@@ -129,6 +128,7 @@
   <div class="wrap ftr-bottom"><span>© 2025 Babyglee® — A concern of AMC Knit Composite Ltd.</span><span>Trademark Reg. No. 210926 (Class 25) · Trade licence TRAD/DNCC/090476/2022</span></div>
 </footer>
 <a class="fab fab-wa" id="waFab" href="https://wa.me/8801974974973" target="_blank" rel="noopener" aria-label="Chat with us on WhatsApp"><svg class="ic " aria-hidden="true"><use href="#i-whatsapp"/></svg></a>
+<button class="fab fab-cart" id="cartFab" type="button" aria-label="View cart" hidden><svg class="ic " aria-hidden="true"><use href="#i-bag"/></svg><i class="js-cart-count">0</i></button>
 <div class="sheet-wrap" id="sizeModal" hidden>
   <div class="sheet-scrim" data-close></div>
   <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="szTitle">
@@ -142,6 +142,15 @@
       <h4 class="sheet-h">All sizes</h4>
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Shoe size</th><th>Foot length</th><th>Age (approx.)</th></tr></thead><tbody><tr data-eu="21"><td><b>EU 21</b></td><td>12.5 cm</td><td>≈ 1–2 yrs</td></tr><tr data-eu="22"><td><b>EU 22</b></td><td>13.2 cm</td><td>≈ 1–2 yrs</td></tr><tr data-eu="23"><td><b>EU 23</b></td><td>13.8 cm</td><td>≈ 1–2 yrs</td></tr><tr data-eu="24"><td><b>EU 24</b></td><td>14.5 cm</td><td>≈ 2–4 yrs</td></tr><tr data-eu="25"><td><b>EU 25</b></td><td>15.2 cm</td><td>≈ 2–4 yrs</td></tr><tr data-eu="26"><td><b>EU 26</b></td><td>15.8 cm</td><td>≈ 2–4 yrs</td></tr><tr data-eu="27"><td><b>EU 27</b></td><td>16.5 cm</td><td>≈ 4–6 yrs</td></tr><tr data-eu="28"><td><b>EU 28</b></td><td>17.2 cm</td><td>≈ 4–6 yrs</td></tr><tr data-eu="29"><td><b>EU 29</b></td><td>17.8 cm</td><td>≈ 4–6 yrs</td></tr><tr data-eu="30"><td><b>EU 30</b></td><td>18.5 cm</td><td>≈ 6–8 yrs</td></tr><tr data-eu="31"><td><b>EU 31</b></td><td>19.2 cm</td><td>≈ 6–8 yrs</td></tr><tr data-eu="32"><td><b>EU 32</b></td><td>19.8 cm</td><td>≈ 6–8 yrs</td></tr><tr data-eu="33"><td><b>EU 33</b></td><td>20.5 cm</td><td>≈ 8–10 yrs</td></tr><tr data-eu="34"><td><b>EU 34</b></td><td>21.2 cm</td><td>≈ 8–10 yrs</td></tr><tr data-eu="35"><td><b>EU 35</b></td><td>21.8 cm</td><td>≈ 8–10 yrs</td></tr><tr data-eu="36"><td><b>EU 36</b></td><td>22.5 cm</td><td>≈ 8–10 yrs</td></tr></tbody></table></div><p class="fine">Measure from heel to the longest toe. Sizes are approximate, so our team also confirms the size with you by call or message before shipping.</p>
     </div>
+  </section>
+</div>
+<div class="sheet-wrap" id="cartSheet" hidden>
+  <div class="sheet-scrim" data-close></div>
+  <section class="sheet cart-sheet" role="dialog" aria-modal="true" aria-labelledby="csTitle">
+    <header><h3 id="csTitle">Your cart</h3><button class="icon-btn" type="button" data-close aria-label="Close cart"><svg class="ic " aria-hidden="true"><use href="#i-close"/></svg></button></header>
+    <div class="sheet-body"><div id="csLines"></div>
+      <div class="cs-empty" id="csEmpty" hidden><p>Your cart is empty.</p><button class="btn" type="button" data-close>Choose your pair</button></div></div>
+    <div class="cs-foot" id="csFoot"><div class="cs-tot"><span id="csCount">0 pairs</span><b id="csTotal">৳0</b></div><a class="btn block" id="csGo" href="checkout.html">Checkout</a><small>Delivery charge is added at checkout. Pay on delivery.</small></div>
   </section>
 </div>
 <div class="sheet-wrap" id="shotBox" hidden>

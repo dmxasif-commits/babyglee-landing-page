@@ -36,6 +36,8 @@
   var uid = getCookie('bg_uid');
   if (!uid) { uid = uuid(); }
   setCookie('bg_uid', uid, 400);
+  /* _fbp: Meta's browser ID (fb.1.<time ms>.<random>). Created here only if the Pixel has not made it yet, so server-side events always carry it. */
+  if (!getCookie('_fbp')) setCookie('_fbp', 'fb.1.' + Date.now() + '.' + Math.floor(Math.random() * 1e10), 90);
 
   /* ---------- attribution: UTMs + click IDs (first touch kept, last touch updated) ---------- */
   var KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid', 'gbraid', 'wbraid', 'ttclid'];
@@ -134,7 +136,7 @@
 
   /* ---------- identifiers sent with events ---------- */
   function ids() {
-    var o = { fbp: getCookie('_fbp'), fbc: getCookie('_fbc') };
+    var o = { fbp: getCookie('_fbp'), fbc: getCookie('_fbc'), external_id: uid };
     var a = attr.last || {}, f = attr.first || {};
     KEYS.forEach(function (k) { if (a[k]) o[k] = a[k]; });
     if (f.utm_source) o.first_utm_source = f.utm_source;
@@ -159,8 +161,14 @@
   /* GA4 e-commerce push: clears the previous ecommerce object first, adds event_id (used to de-duplicate browser vs server events) */
   function ecom(name, ecommerce, extra) {
     ecommerce = ecommerce || {}; ecommerce.currency = CUR;
+    var its = ecommerce.items || [], qty = its.reduce(function (a, i) { return a + (i.quantity || 1); }, 0);
     push({ ecommerce: null });
-    var o = { event: name, event_id: (extra && extra.event_id) || eventId(name), ecommerce: ecommerce };
+    var o = { event: name, event_id: (extra && extra.event_id) || eventId(name), event_time: Math.floor(Date.now() / 1000), event_source_url: location.href,
+      external_id: uid, fbp: getCookie('_fbp'), fbc: getCookie('_fbc'), ecommerce: ecommerce,
+      /* ready-made Meta custom_data (Pixel and Conversions API): same product IDs as the catalogue feed */
+      meta_custom_data: { content_type: 'product', content_ids: its.map(function (i) { return i.item_id; }), num_items: qty, value: ecommerce.value, currency: CUR,
+        contents: its.map(function (i) { return { id: i.item_id, quantity: i.quantity || 1, item_price: i.price }; }) } };
+    var vid = ids(); for (var v in vid) if (vid[v] && o[v] == null) o[v] = vid[v];   // UTMs and click IDs on every event
     if (extra) for (var k in extra) if (k !== 'event_id') o[k] = extra[k];
     push(o); return o.event_id;
   }

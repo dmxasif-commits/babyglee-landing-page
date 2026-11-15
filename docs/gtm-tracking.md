@@ -28,6 +28,7 @@ All values are in **BDT**. Every event has a unique `event_id`.
 | `add_to_cart` | Add to cart, Quick add, Buy now | Buy now also sends `buy_now: true` |
 | `remove_from_cart` | remove / decrease in cart | |
 | `view_cart` | cart page, or cart drawer opened | |
+| `generate_lead` | a valid mobile number typed in checkout but the order not finished (incomplete order); `lead_type: incomplete_checkout` | |
 | `begin_checkout` | checkout page load (page 2) | |
 | `add_shipping_info` | name, phone, district and address are all valid | `shipping_tier`, customer data attached |
 | `add_payment_info` | order submitted | `payment_type: "Cash on Delivery"` |
@@ -125,3 +126,6 @@ server events, so the ad algorithm learns from real sales rather than from every
 - GA4 e-commerce: https://developers.google.com/analytics/devguides/collection/ga4/ecommerce
 - Google Ads enhanced conversions (Google tag): https://support.google.com/google-ads/answer/9888145
 - Meta Conversions API customer information parameters: https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/customer-information-parameters
+
+
+For Meta field mapping, what to send in each event and how to raise Event Match Quality, see `docs/meta-tracking.md`.

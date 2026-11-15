@@ -29,6 +29,24 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-15: Complete dataLayer for GTM / Meta (server-side GTM)
+- Every e-commerce event now carries `event_id`, `event_time`, `event_source_url`, `external_id`, `fbp`, `fbc`, UTMs/click IDs and a ready-made `meta_custom_data` (content_ids = SKUs, contents, num_items, value, BDT).
+- New `generate_lead` event (incomplete order) when a valid mobile number is typed in checkout; carries the hashed customer data and cart. Works with or without the backend.
+- `_fbp` is created by the site when the Pixel has not made it yet; `_fbc` keeps its case.
+- Admin → Settings: the Meta Conversions API box now says to leave it empty when server-side GTM sends the events.
+- New `docs/meta-tracking.md` (events, fields, what the server container adds, EMQ checklist, how to test); `docs/gtm-tracking.md` updated.
+- Tests: 12 new dataLayer checks (hashing, identifiers, custom_data, lead, purchase) + the earlier 32 + 49 pass.
+- Backup before this change: `backups/site-2026-11-15-before-meta-tracking.zip`.
+- Files: `assets/tracking.js`, `assets/main.js`, `admin/index.php`, `docs/`.
+
+### 2026-11-15: Mobile polish (flag, floating cart, receipt, footer)
+- Bangladesh flag icon replaces the "BD" badge (header country button, country menu, phone and country fields).
+- WhatsApp button moved to the right; a floating cart button sits above it (shown when the cart has items). Tapping it, or the bag in the header, opens a cart sheet with names, sizes, quantities, edit/remove, total and Checkout. The old bottom cart bar is removed.
+- Thank-you page redesigned for phones: stacked receipt (items with quantity on the right, delivery address, amount to pay).
+- Footer made shorter on phones: brand row, two-column links, two-column contact details.
+- Backup before this change: `backups/site-2026-11-15-before-mobile-polish.zip`.
+- Files: `tools/build.py`, `assets/main.js`, `assets/style.css`, regenerated `.html`. Tests: 32 (demo) + 49 (backend) pass.
+
 ### 2026-11-15: New landing-page site (this repository)
 - Rebuilt the earlier store site as a three-step landing page: choose products and sizes on page 1 (several products in one cart, sticky cart bar), checkout on page 2 (Cash on Delivery), thank-you on page 3.
 - Page 1 content: hero with ৳ and US$ price, trust strip, product cards with photo gallery and size chips, size guide sheet, why sneakers for kids, why Babyglee, sole anatomy with hotspots, size finder, reviews section (hidden until reviews exist), 3-step ordering, FAQ.
