@@ -29,8 +29,9 @@ function setPrice(box, slug) {
 /* ---------- mobile menu ---------- */
 const burger = $('#burger'), nav = $('#nav');
 if (burger) {
-  const set = o => { nav.classList.toggle('open', o); burger.setAttribute('aria-expanded', o); };
+  const set = o => { nav.classList.toggle('open', o); document.body.classList.toggle('nav-open', o); burger.setAttribute('aria-expanded', o); };
   burger.addEventListener('click', () => set(!nav.classList.contains('open')));
+  document.addEventListener('click', e => { if (nav.classList.contains('open') && !e.target.closest('#nav') && !e.target.closest('#burger')) set(false); });
   $$('#nav a').forEach(a => a.addEventListener('click', () => set(false)));
   document.addEventListener('keydown', e => e.key === 'Escape' && set(false));
 }
@@ -79,13 +80,32 @@ if ('IntersectionObserver' in window) {
 }
 
 /* ---------- size finder (home) ---------- */
-const eu4cm = v => Math.min(36, Math.max(21, Math.round((v + 1.5) * 1.5)));
-const ageOf = eu => eu <= 23 ? '≈ 1–2 yrs' : eu <= 26 ? '≈ 2–4 yrs' : eu <= 29 ? '≈ 4–6 yrs' : eu <= 32 ? '≈ 6–8 yrs' : '≈ 8–10 yrs';
-const cm = $('#cm');
-if (cm) {
-  const calc = () => { const v = +cm.value, eu = eu4cm(v); $('#cmOut').textContent = v.toFixed(1); $('#sizeOut').textContent = 'EU ' + eu; $('#ageOut').textContent = ageOf(eu); };
-  cm.addEventListener('input', calc); calc();
+const CHART = [[21, 13.5, '12–18M'], [22, 14.0, '18–24M'], [23, 14.5, '2Y'], [24, 15.0, '2.5Y'], [25, 15.5, '3Y'], [26, 16.0, '3.5Y'], [27, 16.5, '4Y'], [28, 17.0, '4.5Y'],
+  [29, 17.5, '5Y'], [30, 18.0, '5.5Y'], [31, 18.6, '6Y'], [32, 19.2, '6.5Y'], [33, 19.7, '7Y'], [34, 20.4, '8Y'], [35, 21.2, '9Y'], [36, 22.0, '10–12Y']];  // insole cm; insole = foot + 1 cm
+/* Size for a foot length: the smallest EU size whose insole is at least foot + 1 cm; one size up for wide feet or thick socks. */
+function sizeFor(foot, wide) {
+  const need = foot + 1; let i = CHART.findIndex(r => r[1] >= need - 0.001); if (i < 0) i = CHART.length - 1;
+  if (wide) i = Math.min(CHART.length - 1, i + 1);
+  return { eu: CHART[i][0], age: CHART[i][2], over: need > CHART[CHART.length - 1][1] + 0.001 };
 }
+/* Binds one finder block (ids start with prefix p); onChange(eu or null) lets the size sheet offer "Select EU xx". */
+function bindFinder(p, onChange) {
+  const inp = $('#' + p + 'Cm'); if (!inp) return;
+  const wide = $('#' + p + 'Wide'), out = $('#' + p + 'Out'), age = $('#' + p + 'Age'), note = $('#' + p + 'Note');
+  const scope = inp.closest('.sheet') || inp.closest('.size-box') || document, base = note.textContent;
+  const calc = () => {
+    const v = parseFloat(String(inp.value).replace(',', '.'));
+    $$('tr[data-eu]', scope).forEach(r => r.classList.toggle('hl', false));
+    if (!(v >= 8 && v <= 25)) { out.textContent = 'EU —'; age.textContent = inp.value ? 'Enter 8 to 25 cm' : 'Enter a length'; note.textContent = base; if (onChange) onChange(null); return; }
+    const r = sizeFor(v, wide.checked);
+    out.textContent = 'EU ' + r.eu; age.textContent = '≈ ' + r.age;
+    note.textContent = r.over ? 'This is longer than our biggest size (EU 36). Please message us and we will help.' : `Foot ${v.toFixed(1)} cm + 1 cm = ${(v + 1).toFixed(1)} cm insole${wide.checked ? ', one size up for wide feet or thick socks' : ''}.`;
+    $$('tr[data-eu="' + r.eu + '"]', scope).forEach(x => x.classList.add('hl'));
+    if (onChange) onChange(r.eu);
+  };
+  inp.addEventListener('input', calc); wide.addEventListener('change', calc); calc();
+}
+bindFinder('fs');
 
 /* =====================================================================
    Bottom sheets (size guide + quick add): accessible, body-scroll locked
@@ -116,18 +136,12 @@ document.addEventListener('keydown', e => {
 const sizeModal = $('#sizeModal');
 let sizeTarget = null;
 if (sizeModal) {
-  const szCm = $('#szCm'), use = $('#szUse');
-  const calc = () => {
-    const v = +szCm.value, eu = eu4cm(v);
-    $('#szCmOut').textContent = v.toFixed(1); $('#szOut').textContent = 'EU ' + eu; $('#szAge').textContent = ageOf(eu); use.textContent = 'Select EU ' + eu; use.dataset.eu = eu;
-    $$('tr[data-eu]', sizeModal).forEach(r => r.classList.toggle('hl', +r.dataset.eu === eu));
-  };
-  szCm.addEventListener('input', calc); calc();
-  use.addEventListener('click', () => { if (sizeTarget) sizeTarget(+use.dataset.eu); closeSheet(sizeModal); });
+  const use = $('#szUse');
+  bindFinder('sz', eu => { use.dataset.eu = eu || ''; use.hidden = !(sizeTarget && eu); if (eu) use.textContent = 'Select EU ' + eu; });
+  use.addEventListener('click', () => { if (sizeTarget && use.dataset.eu) sizeTarget(+use.dataset.eu); closeSheet(sizeModal); });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-open-size]'); if (!b) return;
-    sizeTarget = b.sizeTarget || null; use.hidden = !sizeTarget; openSheet(sizeModal);
-    T.push({ event: 'size_guide_open', page_type: PAGE_TYPES[page] || 'other' });
+    sizeTarget = b.sizeTarget || null; use.hidden = true; openSheet(sizeModal);    T.push({ event: 'size_guide_open', page_type: PAGE_TYPES[page] || 'other' });
   });
 }
 
@@ -253,6 +267,7 @@ function watchShipping(form, fields, getItems, area) {
    ===================================================================== */
 const imgsOf = s => (PR[s] && PR[s].images && PR[s].images.length) ? PR[s].images : [PR[s].img];
 const BAG = '<svg class="ic" aria-hidden="true"><use href="#i-bag"/></svg>';
+const RULER = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="8" width="20" height="8" rx="2"/><path d="M6 8v4M10 8v3M14 8v4M18 8v3"/></svg>';
 const cardHTML = (s, p) => {
   const pr = priceOf(s), l = listOf(s), usd = usdOf(s), ims = imgsOf(s), all = sizesOf(s) || [], out = outOf(s), sold = soldOut(s), low = p.low || {};
   const chips = all.map(n => { const o = out.includes(n), lw = low[n] ? ` title="Only ${low[n]} left"` : (o ? ' title="Sold out"' : ''); return `<label class="szc${o ? ' out' : ''}${low[n] ? ' low' : ''}"${lw}><input type="radio" name="sz-${esc(s)}" value="${n}"${o ? ' disabled' : ''}><span>${n}</span></label>`; }).join('');
@@ -262,7 +277,7 @@ const cardHTML = (s, p) => {
   <div class="pc-body"><h3>${esc(p.title.replace(/^Babyglee\s+/, ''))}</h3>
     <div class="pc-price">${l > pr ? `<s>${fmt(l)}</s> ` : ''}<b>${fmt(pr)}</b>${l > pr ? `<span class="off">Save ${Math.round((l - pr) / l * 100)}%</span>` : ''}</div>
     ${usd ? `<p class="usd-line">US$${usd} <span>international price</span></p>` : ''}
-    <fieldset class="pc-sizes"><legend>Size (EU) <button type="button" class="lnk" data-open-size>Size guide</button></legend><div class="szs">${chips}</div><small class="err"></small></fieldset>
+    <fieldset class="pc-sizes"><button type="button" class="btn block ghost find-size" data-open-size>${RULER} Find the right size<small>Enter your child's foot length in cm</small></button><legend>Choose size (EU)</legend><div class="szs">${chips}</div><small class="err"></small></fieldset>
     <div class="pc-buy"><div class="qty"><button type="button" data-q="-1" aria-label="Decrease quantity">−</button><output>1</output><button type="button" data-q="1" aria-label="Increase quantity">+</button></div>
       ${sold ? '<button class="btn" type="button" disabled>Sold out</button>' : `<button class="btn" type="button" data-add>${BAG} Add to cart</button>`}</div>
     <p class="pc-msg" role="status"></p></div></article>`;
@@ -298,7 +313,8 @@ function drawCartSheet() {
 function refresh() {
   const n = count();
   $$('.js-cart-count').forEach(c => { c.textContent = n; c.classList.toggle('on', n > 0); });
-  const cf = $('#cartFab'); if (cf) cf.hidden = n === 0;
+  const bar = $('#cartBar');
+  if (bar) { bar.hidden = n === 0; $('#cbGo').textContent = 'Checkout · ' + fmt(subtotal()); document.body.classList.toggle('has-cartbar', n > 0); }
   drawCartSheet();
   $$('.pc').forEach(c => { const q = cart.filter(i => i.slug === c.dataset.slug).reduce((a, i) => a + i.qty, 0), b = $('.pc-in', c); if (b) b.textContent = q ? q + ' in cart' : ''; });
   onCartChange();
@@ -432,7 +448,7 @@ refresh();
 /* ---------- cart sheet (floating cart button + header bag) ---------- */
 if (cartSheet) {
   const openCart = () => { drawCartSheet(); openSheet(cartSheet); if (cart.length) T.ecom('view_cart', { value: subtotal(), items: itemsOf(cart) }); };
-  document.addEventListener('click', e => { if (e.target.closest('#cartFab') || e.target.closest('a.cart-btn')) { e.preventDefault(); openCart(); } });
+  document.addEventListener('click', e => { if (e.target.closest('#cbView') || e.target.closest('a.cart-btn')) { e.preventDefault(); openCart(); } });
   $('#csLines').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; const k = b.closest('.cl').dataset.k, a = b.dataset.act; a === 'inc' ? change(k, 1) : a === 'dec' ? change(k, -1) : removeLine(k); });
 }
 })();
