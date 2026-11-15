@@ -58,3 +58,35 @@ Send as many of these as are known: `em`, `ph`, `fn`, `ln`, `ct`, `country`, `ex
 2. GTM → Preview mode: click each event, check the fields above.
 3. Meta Events Manager → Test events (use your test code in the server tag): the event must show **Browser + Server**, "Deduplicated", and a match-quality score.
 4. After a real test order: Events Manager → the Purchase shows value in BDT and the content IDs.
+
+## GTM must match the website (the dataLayer alone sends nothing)
+
+An event in the dataLayer reaches Meta or GA4 only when your GTM containers have a trigger for it (Custom Event with exactly these names) and the tag maps the fields. Check each of these in GTM Preview:
+
+| Website event | Trigger name | Meta tag event | Notes |
+|---|---|---|---|
+| `page_data` | Custom Event `page_data` | PageView | `event_id` of this push is the shared PageView ID: use it in the Pixel tag **and** the server tag |
+| `view_item` | `view_item` | ViewContent | fires for the first product on load |
+| `view_item_list` | `view_item_list` | (GA4 only) | sent when the first product card shows |
+| `add_to_cart` | `add_to_cart` | AddToCart | also fired by "+" inside the cart; only the pairs really added (limit 10 per size) |
+| `begin_checkout` | `begin_checkout` | InitiateCheckout | |
+| `generate_lead` | `generate_lead` | Lead | means "valid mobile number saved", not "abandoned" (see below) |
+| `add_payment_info` | `add_payment_info` | AddPaymentInfo | sent when the customer taps Place order |
+| `purchase` | `purchase` | Purchase | thank-you page, or the server copy below |
+| `whatsapp_click` | `whatsapp_click` | Contact (optional) | has an `event_id` |
+
+Fields: map `meta_custom_data` to Meta `custom_data`, `meta_user_data` to `user_data`, `event_id`, `event_time`, `event_source_url`, `fbp`, `fbc`. Leave `fbp`, `fbc`, IP and user agent **unhashed**; do not hash the already hashed `meta_user_data` values again.
+**External ID:** every event has the plain visitor ID in `external_id`; events with customer data also have its SHA-256 in `meta_user_data.external_id`. They are the same value, so use one style in all tags: either let the tag hash the plain `external_id`, or send `meta_user_data.external_id` as is. Both give Meta the same hash.
+
+## What the Lead event means
+
+`generate_lead` is sent once per checkout visit, after the backend confirmed it saved the incomplete order (the first valid mobile number). It does not mean the customer abandoned: people who go on to buy also send it. Build "abandoned" audiences by excluding purchasers (Purchase within N days), and use the Admin → Incomplete list for follow-up calls. Later changes to the form update the saved record in Admin but do not send a second Lead.
+If the save fails (network, server error) the site retries a few times with a growing pause and sends the Lead only after a successful save; in demo mode (no backend) it is sent immediately.
+
+## Purchase: how it is made reliable
+
+- The thank-you page builds the Purchase from the **accepted order** returned by the server (items, prices, shipping, total), not from today's catalogue or settings. `value` is the product value, `shipping` is separate, `order_total` includes delivery.
+- The order is marked as reported only after the event is in the dataLayer. If the customer leaves too early, the next visit of the thank-you page sends it. If hashing the customer data stalls, the Purchase is sent without it after 2.5 seconds; checkout itself never waits for tracking more than 2 seconds.
+- **Demo orders** (no backend, e.g. GitHub Pages) send no Purchase, so they cannot pollute your data. To test the dataLayer in demo mode set `localStorage.bg_track_demo = '1'` in the browser console.
+- **Server copy (Admin → Settings → Server GTM backup):** paste your server container's GA4 Measurement Protocol URL. The backend then sends a `purchase` from the saved order with the same `event_id` (`purchase_<orderId>`) and `transaction_id`, plus hashed customer data, `fbp`, `fbc`, `external_id`, IP (`ip_override`) and user agent. Modes: *Only orders confirmed from Incomplete* (default: these customers never see the thank-you page, so the browser sends nothing), *Every order* (backup for lost browser events; the two copies carry the same IDs and are counted once) or *Never*. The Meta Conversions API box in Settings does the same job directly; use it **or** your server container, not both.
+- Your server container needs a GA4 client that accepts these requests and a Purchase tag/trigger on it. This path is built to the Measurement Protocol format but has not been tested against a real container: check it once in server GTM Preview and in Events Manager.

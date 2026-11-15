@@ -63,6 +63,7 @@ foreach (['event_id', 'fbp', 'fbc', 'fbclid', 'gclid', 'gbraid', 'wbraid', 'ttcl
     if (isset($trIn[$k]) && is_scalar($trIn[$k])) $tracking[$k] = mb_substr((string) $trIn[$k], 0, 500);
 }
 if (isset($trIn['meta_user_data']['external_id']) && preg_match('/^[0-9a-f]{64}$/', (string) $trIn['meta_user_data']['external_id'])) $tracking['external_id'] = $trIn['meta_user_data']['external_id'];
+if (isset($trIn['external_id']) && preg_match('/^[0-9a-f-]{8,64}$/', (string) $trIn['external_id'])) $tracking['uid'] = $trIn['external_id'];   // plain visitor ID: the server tags hash it the same way the browser does
 if (empty($tracking['event_id']) || !preg_match('/^[\w-]{5,80}$/', $tracking['event_id'])) $tracking['event_id'] = 'purchase_' . $id;
 
 $pdo->beginTransaction();
@@ -82,9 +83,8 @@ $pdo->prepare('DELETE FROM leads WHERE phone = ?')->execute(['+' . $phone]);   /
 $pdo->commit();
 
 /* Server-side Meta Conversions API Purchase (only when a Pixel ID and token are saved in Admin > Settings). Never blocks the order. */
-try {
-    $res = capi_purchase(['id' => $id, 'name' => $name, 'phone' => $phone, 'email' => $email, 'district' => $district, 'total' => $total, 'items' => $items], $tracking, $ip, $ua);
-    if ($res !== '') $pdo->prepare('UPDATE orders SET capi_status = ? WHERE id = ?')->execute([mb_substr($res, 0, 120), $id]);
-} catch (Throwable $e) { error_log('Babyglee CAPI: ' . $e->getMessage()); }
+try { dispatch_purchase($pdo, $id, 'web'); } catch (Throwable $e) { error_log('Babyglee purchase dispatch: ' . $e->getMessage()); }
 
-json_out(['ok' => true, 'id' => $id, 'subtotal' => $subtotal, 'delivery' => $delivery, 'total' => $total]);
+/* The accepted order goes back to the browser: the Purchase event is built from these values (what the customer is really charged). */
+json_out(['ok' => true, 'id' => $id, 'subtotal' => $subtotal, 'delivery' => $delivery, 'total' => $total,
+    'items' => array_map(fn($i) => ['slug' => $i['slug'], 'sku' => $i['sku'], 'product' => $i['product'], 'size' => $i['size'], 'qty' => $i['qty'], 'price' => $i['price']], $items)]);

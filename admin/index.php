@@ -2,6 +2,7 @@
 /* Babyglee admin panel: orders, order status, analytics, products, settings (GTM, delivery, Meta), backup. */
 declare(strict_types=1);
 require __DIR__ . '/../api/lib.php';
+require __DIR__ . '/../api/capi.php';
 
 $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 session_name('bg_admin');
@@ -44,12 +45,12 @@ function badge(string $s): string { return '<span class="st st-' . h($s) . '">' 
 
 /* ---------------- first-time setup, login, roles ---------------- */
 $error = '';
-$validUser = fn($u) => (bool) preg_match('/^[a-z0-9_.-]{3,40}$/', $u);
+$validUser = fn($u) => (bool) preg_match('/^[a-z0-9_.+@-]{3,40}$/', $u);
 if (!(int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn()) {
     if ($isPost) {
         $pw = (string) ($_POST['password'] ?? ''); $un = strtolower(trim((string) ($_POST['username'] ?? 'admin')));
         if (!hash_equals((string) (cfg()['setup_key'] ?? ''), (string) ($_POST['setup_key'] ?? '')) || strpos((string) cfg()['setup_key'], 'CHANGE-THIS') === 0) $error = 'Setup key is wrong (or still the sample value in api/config.php).';
-        elseif (!$validUser($un)) $error = 'Username: 3-40 characters, only small letters, numbers, dot, dash or underscore.';
+        elseif (!$validUser($un)) $error = 'Username: 3-40 characters, small letters, numbers, dot, dash, underscore, + or @ (an email address works).';
         elseif (strlen($pw) < 10) $error = 'Password must be at least 10 characters.';
         elseif ($pw !== ($_POST['password2'] ?? '')) $error = 'The two passwords do not match.';
         else {
@@ -59,7 +60,7 @@ if (!(int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn()) {
     }
     page_head('Set up admin', false);
     echo '<form method="post" class="card auth"><h1>Set up admin</h1><p class="mut">First visit: create the owner account. The setup key is the one you wrote in <code>api/config.php</code>.</p>' . ($error ? '<p class="err">' . h($error) . '</p>' : '') . $csrf .
-        '<label>Setup key<input name="setup_key" required autocomplete="off"></label><label>Username<input name="username" required value="admin" autocapitalize="none" autocomplete="username"></label><label>Your name<input name="name" value="Admin" maxlength="80"></label>
+        '<label>Setup key<input name="setup_key" required autocomplete="off"></label><label>Username (an email address works)<input name="username" required value="admin" autocapitalize="none" autocomplete="username"></label><label>Your name<input name="name" value="Admin" maxlength="80"></label>
         <label>New password (10+ characters)<input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
         <label>Repeat password<input type="password" name="password2" required autocomplete="new-password"></label><button class="btn">Create admin</button></form>';
     page_foot(); exit;
@@ -163,6 +164,8 @@ if ($isPost) {
         $res = make_order($pdo, $_POST, (string) $lead['source'], 'confirmed', json_decode((string) $lead['tracking'], true) ?: [], (string) $lead['email'], (string) $lead['ip'], 'Recovered from an incomplete order', 'Created from an incomplete order (confirmed by phone)', $me['name']);
         if (isset($res['err'])) { flash('Not confirmed: ' . $res['err']); go('p=lead&id=' . $lid); }
         $pdo->prepare('DELETE FROM leads WHERE id = ?')->execute([$lid]);
+        /* This customer never reached the thank-you page, so the browser sent no Purchase: send it from here (Meta / server GTM, if set up in Settings). */
+        try { dispatch_purchase($pdo, $res['id'], 'recovered'); } catch (Throwable $e) { error_log('Babyglee purchase dispatch: ' . $e->getMessage()); }
         flash('Order #' . $res['id'] . ' created and confirmed.'); go('p=order&id=' . $res['id']);
     }
     if ($act === 'neworder') {
@@ -182,7 +185,7 @@ if ($isPost) {
     if ($act === 'user_add') {
         $un = strtolower(trim((string) ($_POST['username'] ?? ''))); $pw = (string) ($_POST['password'] ?? ''); $nm = mb_substr(trim((string) ($_POST['name'] ?? '')), 0, 80);
         $ex = $pdo->prepare('SELECT COUNT(*) FROM users WHERE username = ?'); $ex->execute([$un]);
-        if (!$validUser($un)) flash('Not added: username needs 3-40 small letters, numbers, dot, dash or underscore.');
+        if (!$validUser($un)) flash('Not added: username needs 3-40 small letters, numbers, dot, dash, underscore, + or @ (an email address works).');
         elseif ((int) $ex->fetchColumn()) flash('Not added: that username already exists.');
         elseif ($nm === '' || strlen($pw) < 10) flash('Not added: give a name and a password of 10+ characters.');
         else { $pdo->prepare('INSERT INTO users (username, name, pass_hash, role, active, created_at) VALUES (?,?,?,?,1,?)')->execute([$un, $nm, password_hash($pw, PASSWORD_DEFAULT), ($_POST['role'] ?? '') === 'admin' ? 'admin' : 'staff', now()]); flash('Account "' . $un . '" added.'); }
@@ -264,6 +267,8 @@ if ($isPost) {
             'delivery_dhaka' => (string) max(0, (int) $_POST['delivery_dhaka']), 'delivery_outside' => (string) max(0, (int) $_POST['delivery_outside']),
             'meta_pixel_id' => preg_replace('/\D/', '', (string) $_POST['meta_pixel_id']) ?? '',
             'meta_test_code' => preg_replace('/[^A-Za-z0-9]/', '', (string) $_POST['meta_test_code']) ?? '',
+            'sgtm_mp_url' => ($u = trim((string) ($_POST['sgtm_mp_url'] ?? ''))) !== '' && filter_var($u, FILTER_VALIDATE_URL) && (strpos($u, 'https://') === 0 || preg_match('#^http://(127\.0\.0\.1|localhost)[:/]#', $u)) ? $u : '',
+            'sgtm_mode' => in_array($md = (string) ($_POST['sgtm_mode'] ?? ''), ['off', 'recovered', 'all'], true) ? $md : 'recovered',
             'meta_api_version' => preg_match('/^v\d{1,2}\.\d$/', $v = trim((string) $_POST['meta_api_version'])) ? $v : BG_DEFAULTS['meta_api_version'],
             'biz_name' => mb_substr(trim((string) $_POST['biz_name']), 0, 80) ?: BG_DEFAULTS['biz_name'], 'biz_phone' => mb_substr(trim((string) $_POST['biz_phone']), 0, 40),
             'biz_address' => mb_substr(trim((string) $_POST['biz_address']), 0, 200), 'invoice_note' => mb_substr(trim((string) $_POST['invoice_note']), 0, 300),
@@ -274,6 +279,7 @@ if ($isPost) {
         $bad = [];
         if (trim((string) $_POST['gtm_id']) !== '' && $clean['gtm_id'] === '') $bad[] = 'GTM ID must look like GTM-XXXXXXX';
         if (trim((string) $_POST['gtm_src']) !== '' && $clean['gtm_src'] === '') $bad[] = 'GTM loader URL must start with https://';
+        if (trim((string) ($_POST['sgtm_mp_url'] ?? '')) !== '' && $clean['sgtm_mp_url'] === '') $bad[] = 'Server GTM URL must start with https://';
         flash($bad ? 'Saved, except: ' . implode('; ', $bad) . '.' : 'Settings saved. The website updates within a minute.'); go('p=settings');
     }
     if ($act === 'password') {
@@ -627,6 +633,9 @@ if ($page === 'settings') {
       <div class="f2"><label>Pixel (dataset) ID<input name="meta_pixel_id" value="' . $s('meta_pixel_id') . '" inputmode="numeric"></label><label>Graph API version<input name="meta_api_version" value="' . $s('meta_api_version') . '"></label></div>
       <label>Access token ' . (setting('meta_capi_token') !== '' ? '(saved; leave empty to keep it, type REMOVE to delete it)' : '(not set)') . '<input name="meta_capi_token" value="" autocomplete="off" placeholder="' . (setting('meta_capi_token') !== '' ? '••••••••' : 'EAAG…') . '"></label>
       <label>Test event code (only while testing in Events Manager)<input name="meta_test_code" value="' . $s('meta_test_code') . '" placeholder="TEST12345"></label>
+      <h2>Server GTM backup for Purchase (optional)</h2><p class="mut">The website sends Purchase from the thank-you page. This server can also send it, from the saved order, so nothing is lost when a customer closes the page early, and so orders you confirm in Incomplete are reported (their customers never saw the thank-you page). Paste the GA4 Measurement Protocol URL of your server container (it ends like <code>/mp/collect?measurement_id=G-XXXX&amp;api_secret=XXXX</code>). The event has the same ID as the browser one, so it is counted once.</p>
+      <label>Server GTM Measurement Protocol URL<input name="sgtm_mp_url" value="' . $s('sgtm_mp_url') . '" inputmode="url" placeholder="https://sgtm.yourdomain.com/mp/collect?measurement_id=G-XXXX&amp;api_secret=XXXX"></label>
+      <label>Send Purchase from this server<select name="sgtm_mode"><option value="recovered"' . (setting('sgtm_mode') === 'recovered' ? ' selected' : '') . '>Only orders confirmed from Incomplete (default)</option><option value="all"' . (setting('sgtm_mode') === 'all' ? ' selected' : '') . '>Every order (backup, counted once)</option><option value="off"' . (setting('sgtm_mode') === 'off' ? ' selected' : '') . '>Never</option></select></label>
       <button class="btn">Save settings</button></form>
     <div class="grid2"><form method="post" class="card form">' . $csrf . '<input type="hidden" name="act" value="password"><h2>Change password</h2><label>Current password<input type="password" name="current" required autocomplete="current-password"></label><label>New password (10+ characters)<input type="password" name="password" required minlength="10" autocomplete="new-password"></label><label>Repeat new password<input type="password" name="password2" required autocomplete="new-password"></label><button class="btn">Change password</button></form>
     <section class="card"><h2>Staff accounts</h2><p class="mut">Each person gets their own login. <b>Staff</b> can only work on orders and incomplete orders. <b>Admin</b> can also see products, prices, profit, ads and settings. Every status change records who did it.</p><table class="tbl small">'

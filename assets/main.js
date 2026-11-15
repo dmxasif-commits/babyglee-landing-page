@@ -158,6 +158,8 @@ if (sizeModal) {
 
 
 const LISTS = {};
+/* resolves with the promise's value, or null after ms milliseconds (the promise itself keeps running) */
+const within = (pr, ms) => Promise.race([pr, new Promise(res => setTimeout(() => res(null), ms))]);
 const itemsHTML = items => items.map(i => `<li><span>${esc(i.product)}<small>EU ${esc(i.size)}</small></span><b>× ${+i.qty}</b></li>`).join('');
 const itemsOf = list => list.map((i, n) => T.item(i.slug, { size: i.size, qty: i.qty, index: n })).filter(Boolean);
 const valueOf = items => T.sum(items);
@@ -177,19 +179,32 @@ document.addEventListener('input', e => { const t = e.target; if (t && t.name ==
 function watchLead(form, source, getItems) {
   let token = ''; try { token = sessionStorage.getItem('bg_lead') || ''; } catch (e) {}
   if (!token) { token = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).toLowerCase(); try { sessionStorage.setItem('bg_lead', token); } catch (e) {} }
-  let timer, last = '', leadPushed = false;
-  const send = () => {
-    const ph = el(form, 'phone').value; if (!phoneOk(ph) || form.dataset.done) return;
-    const a = T.attribution().last || {}, body = JSON.stringify({ token, source, phone: ph, name: el(form, 'name').value, email: el(form, 'email').value, district: el(form, 'district').value, address: el(form, 'address').value,
-      area: el(form, 'district').value || el(form, 'address').value ? (el(form, 'area').value === 'dhaka' ? 'Inside Dhaka' : 'Outside Dhaka') : '',
-      items: getItems().map(i => ({ slug: i.slug, size: +i.size || 0, qty: i.qty })), tracking: Object.assign({ page_url: location.href, referrer: document.referrer }, a, T.ids()) });
-    if (body === last) return; last = body;
-    if (!leadPushed) { leadPushed = true; stageEvent('generate_lead', custOf(form), getItems(), el(form, 'area').value, { event_id: 'lead_' + token, lead_type: 'incomplete_checkout', page_type: 'checkout' }); }
-    if (BG.LEAD_ENDPOINT) try { fetch(BG.LEAD_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: true }).catch(() => {}); } catch (e) {}
+  let timer, retryTimer, saved = '', inflight = '', tries = 0, leadPushed = false;
+  const bodyNow = () => JSON.stringify({ token, source, phone: el(form, 'phone').value, name: el(form, 'name').value, email: el(form, 'email').value, district: el(form, 'district').value, address: el(form, 'address').value,
+    area: el(form, 'district').value || el(form, 'address').value ? (el(form, 'area').value === 'dhaka' ? 'Inside Dhaka' : 'Outside Dhaka') : '',
+    items: getItems().map(i => ({ slug: i.slug, size: +i.size || 0, qty: i.qty })), tracking: Object.assign({ page_url: location.href, referrer: document.referrer }, T.attribution().last || {}, T.ids()) });
+  /* The Lead event means "a valid mobile number was captured". It is sent once the backend has confirmed the save (right away in demo mode, where nothing is saved). */
+  const pushLead = () => { if (leadPushed) return; leadPushed = true; stageEvent('generate_lead', custOf(form), getItems(), el(form, 'area').value, { event_id: 'lead_' + token, lead_type: 'incomplete_checkout', page_type: 'checkout' }); };
+  const RETRY = [2000, 5000, 15000, 40000];
+  const retry = () => { if (tries >= RETRY.length || form.dataset.done) return; clearTimeout(retryTimer); retryTimer = setTimeout(() => send(false), RETRY[tries++]); };
+  /* A body counts as saved only after the backend answered ok. Network errors and 5xx/408/429 are retried with a growing pause; other 4xx answers are final until the form changes. */
+  const send = async final => {
+    if (!phoneOk(el(form, 'phone').value) || form.dataset.done) return;
+    const body = bodyNow(); if (body === saved || body === inflight) return;
+    if (!BG.LEAD_ENDPOINT) { saved = body; pushLead(); return; }
+    if (final && navigator.sendBeacon) { try { if (navigator.sendBeacon(BG.LEAD_ENDPOINT, new Blob([body], { type: 'text/plain' }))) saved = body; } catch (e) {} return; }
+    inflight = body;
+    try {
+      const r = await fetch(BG.LEAD_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: true });
+      const j = await r.json().catch(() => null);
+      if (r.ok && j && j.ok) { saved = body; tries = 0; pushLead(); }
+      else if (r.status >= 500 || r.status === 408 || r.status === 429) retry();
+    } catch (e) { retry(); }
+    finally { inflight = ''; }
   };
-  const later = () => { clearTimeout(timer); timer = setTimeout(send, 1200); };
+  const later = () => { clearTimeout(timer); timer = setTimeout(() => send(false), 1200); };
   form.addEventListener('input', later); form.addEventListener('change', later);
-  addEventListener('pagehide', send);
+  addEventListener('pagehide', () => send(true));
 }
 const rules = {
   name: v => v.trim().length < 2 ? 'Please enter your name' : '',
@@ -231,7 +246,13 @@ async function sendOrder(order) {
     try {
       const r = await fetch(BG.ORDER_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(order) });
       const j = await r.json().catch(() => null);
-      if (j && j.ok) { if (j.total) { order.total = j.total; order.delivery = j.delivery != null ? j.delivery : order.delivery; } return { ok: true }; }
+      if (j && j.ok) {
+        /* keep what the server accepted (prices, delivery, total): the Purchase event is built from these, not from today's catalogue */
+        if (j.total) { order.total = j.total; order.delivery = j.delivery != null ? j.delivery : order.delivery; }
+        if (j.subtotal != null) order.subtotal = j.subtotal;
+        if (Array.isArray(j.items)) order.accepted = j.items;
+        return { ok: true };
+      }
       return { ok: false, msg: j && j.error };
     } catch (e) { return { ok: false }; }
   }
@@ -263,6 +284,20 @@ async function stageEvent(name, cust, items, area, extra) {
   if (name === 'purchase') { ecommerce.transaction_id = payload.transaction_id; ecommerce.shipping = del; ecommerce.tax = 0; }
   return T.ecom(name, ecommerce, payload);
 }
+/* Purchase event from what the server accepted for this order (items, prices, delivery), never from the current catalogue or settings. */
+async function purchaseEvent(o) {
+  const src = o.accepted && o.accepted.length ? o.accepted : o.items;
+  const items = src.map((i, n) => {
+    const g = T.item(i.slug, { size: i.size, qty: i.qty, index: n });
+    if (!g) return { item_id: i.sku || i.slug, item_name: i.product || i.slug, item_brand: 'Babyglee', item_variant: 'EU ' + i.size, price: i.price, quantity: i.qty, index: n };
+    g.price = i.price; g.discount = Math.max(0, ((PR[i.slug] && PR[i.slug].listPrice) || i.price) - i.price); if (i.sku) g.item_id = i.sku; return g;
+  });
+  const value = o.subtotal != null ? o.subtotal : valueOf(items);
+  /* if hashing the customer data stalls, the Purchase is still sent (without it) rather than lost */
+  let cd = {}; try { cd = await within(T.customerData({ name: o.name, phone: o.phone, email: o.email, address: o.address, district: o.district }), 2500) || {}; } catch (e) {}
+  const payload = Object.assign({ user_data: cd.user_data, meta_user_data: cd.meta_user_data }, T.ids(), { event_id: 'purchase_' + o.id, transaction_id: o.id, order_total: o.total, order_source: 'landing', payment_type: 'Cash on Delivery', shipping_tier: o.area });
+  return T.ecom('purchase', { transaction_id: o.id, value, shipping: o.delivery, tax: 0, items }, payload);
+}
 /* The same details go into the order so the server (Conversions API) can send the matching Purchase with the same event_id. */
 async function trackingBlock(cust, order) {
   const cd = await T.customerData(cust);
@@ -270,7 +305,7 @@ async function trackingBlock(cust, order) {
 }
 function watchShipping(form, fields, getItems, area) {
   const go = () => { if (fired.has('ship') || !fields.silentValid()) return; fired.add('ship'); stageEvent('add_shipping_info', custOf(form), getItems(), area()); };
-  ['address', 'district', 'phone'].forEach(k => el(form, k).addEventListener(el(form, k).tagName === 'SELECT' ? 'change' : 'blur', go));
+  form.addEventListener('focusout', go); form.addEventListener('change', go);   // whichever field is completed last (name, phone, district or address) triggers the check
 }
 
 /* =====================================================================
@@ -333,19 +368,23 @@ function refresh() {
 function change(k, d) {
   const i = cart.find(x => x.k === k); if (!i) return;
   if (d < 0) T.ecom('remove_from_cart', { value: priceOf(i.slug), items: [T.item(i.slug, { size: i.size, qty: 1 })] });
-  i.qty += d; if (i.qty < 1) cart = cart.filter(x => x !== i); else i.qty = Math.min(10, i.qty);
+  const before = i.qty; i.qty += d; if (i.qty < 1) cart = cart.filter(x => x !== i); else i.qty = Math.min(10, i.qty);
   persist(); refresh();
+  if (d > 0 && i.qty > before) T.ecom('add_to_cart', { value: priceOf(i.slug), items: [T.item(i.slug, { size: i.size, qty: 1 })] });   // one more pair added from the cart
 }
 function removeLine(k) {
   const i = cart.find(x => x.k === k); if (!i) return;
   T.ecom('remove_from_cart', { value: priceOf(i.slug) * i.qty, items: [T.item(i.slug, { size: i.size, qty: i.qty })] });
   cart = cart.filter(x => x !== i); persist(); refresh();
 }
+/* Adds pairs (at most 10 of one size). Returns how many were really added; the event reports only those. */
 function addToCart(slug, size, qty) {
-  const k = slug + '|' + size, ex = cart.find(i => i.k === k);
-  if (ex) ex.qty = Math.min(10, ex.qty + qty); else cart.push({ k, slug, size, qty: Math.min(10, qty) });
+  const k = slug + '|' + size, ex = cart.find(i => i.k === k), before = ex ? ex.qty : 0, added = Math.min(10, before + qty) - before;
+  if (added <= 0) return 0;
+  if (ex) ex.qty = before + added; else cart.push({ k, slug, size, qty: added });
   persist(); refresh();
-  T.ecom('add_to_cart', { value: priceOf(slug) * qty, items: [T.item(slug, { size, qty })] });
+  T.ecom('add_to_cart', { value: priceOf(slug) * added, items: [T.item(slug, { size, qty: added })] });
+  return added;
 }
 
 
@@ -366,14 +405,17 @@ if (page === 'landing') {
     const r = $('input:checked', c);
     if (!r) { $('.err', c).textContent = 'Please select a size'; const b = $('.szs', c); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
     const o = $('.qty output', c), n = +o.textContent, size = +r.value;
-    addToCart(s, size, n); touch(c);
+    const added = addToCart(s, size, n); touch(c);
+    if (!added) { $('.pc-msg', c).innerHTML = `You already have the maximum of 10 pairs in EU ${size}. <a href="checkout.html">Checkout</a> or pick another size.`; return; }
     o.textContent = '1'; r.checked = false;
     const btn = $('[data-add]', c); btn.classList.add('added'); btn.innerHTML = 'Added ✓'; setTimeout(() => { btn.classList.remove('added'); btn.innerHTML = BAG + ' Add to cart'; }, 1400);
-    $('.pc-msg', c).innerHTML = `EU ${size} × ${n} added. <a href="checkout.html">Checkout</a> or pick another size or colour.`;
+    $('.pc-msg', c).innerHTML = `EU ${size} × ${added} added${added < n ? ' (maximum 10 per size)' : ''}. <a href="checkout.html">Checkout</a> or pick another size or colour.`;
   });
   grid.addEventListener('change', e => { if (!e.target.matches('input[type=radio]')) return; const c = e.target.closest('.pc'); $('.err', c).textContent = ''; touch(c); T.push({ event: 'select_size', item_id: PR[c.dataset.slug].sku, size: 'EU ' + e.target.value }); });
   const sendList = () => T.ecom('view_item_list', { item_list_id: listId, item_list_name: listName, items: slugs.map((s, n) => T.item(s, { index: n, listId, listName })) });
-  if ('IntersectionObserver' in window) { const o = new IntersectionObserver(es => { if (es[0].isIntersecting) { sendList(); o.disconnect(); } }, { threshold: .15 }); o.observe(grid); } else sendList();
+  /* the list counts as seen when its first product card shows (the whole grid is taller than a small phone screen, so it can never be 15% visible there) */
+  const firstCard = grid.firstElementChild;
+  if ('IntersectionObserver' in window && firstCard) { const o = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { sendList(); o.disconnect(); } }, { threshold: 0.1 }); o.observe(firstCard); } else sendList();
   T.ecom('view_item', { value: priceOf(slugs[0] || ''), items: slugs.length ? [T.item(slugs[0])] : [] }, { page_type: 'landing', note: 'landing_view' });
 
   /* inside-every-Bounce hotspots: tap a number or a row to highlight both */
@@ -419,8 +461,9 @@ if (page === 'checkout') {
     if (bad) { bad.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     sending = true; $('#submitBtn').disabled = true; $('#sendErr').hidden = true;
     const cust = custOf(form), order = buildOrder(form, 'landing', toOrderItems(lines()), area());
-    order.tracking = await trackingBlock(cust, order);
-    await stageEvent('add_payment_info', cust, lines(), area());
+    /* Tracking must never hold up an order: each tracking step gets a short time limit, then the order goes on. */
+    order.tracking = await within(trackingBlock(cust, order), 2000) || Object.assign({ event_id: 'purchase_' + order.id, user_agent: navigator.userAgent, page_url: location.href, referrer: document.referrer, attribution: T.attribution() }, T.ids());
+    await within(stageEvent('add_payment_info', cust, lines(), area()), 2000);
     const res = await sendOrder(order);
     if (!res.ok) { sending = false; sendFailed(res); return; }
     form.dataset.done = '1'; try { sessionStorage.removeItem('bg_lead'); } catch (e) {}
@@ -443,10 +486,11 @@ if (page === 'thanks') {
     $('#rA').textContent = o.address + ', ' + o.district + ' (' + o.area + ')'; $('#rT').textContent = fmt(o.total); $('#rPh').textContent = o.phone;
     $('#demoNote').hidden = !o.demo;
     const k = 'bg_purchased'; let done = []; try { done = JSON.parse(sessionStorage.getItem(k) || '[]'); } catch (e) {}
-    if (!done.includes(o.id)) {
-      const areaKey = o.area === 'Inside Dhaka' ? 'dhaka' : 'outside';
-      stageEvent('purchase', { name: o.name, phone: o.phone, email: o.email, address: o.address, district: o.district }, o.items, areaKey, { event_id: 'purchase_' + o.id, transaction_id: o.id, order_total: o.total, order_source: 'landing', payment_type: 'Cash on Delivery', shipping_tier: o.area });
-      try { done.push(o.id); sessionStorage.setItem(k, JSON.stringify(done)); } catch (e) {}
+    /* A demo order (no backend) is not a sale: it sends no Purchase unless localStorage bg_track_demo = 1 (for testing the dataLayer). */
+    let demoOff = false; try { demoOff = !!o.demo && localStorage.getItem('bg_track_demo') !== '1'; } catch (e) { demoOff = !!o.demo; }
+    if (!done.includes(o.id) && !demoOff) {
+      /* the order is marked as reported only after the event is really in the dataLayer, so an interrupted page load can send it again */
+      purchaseEvent(o).then(() => { try { done.push(o.id); sessionStorage.setItem(k, JSON.stringify(done)); } catch (e) {} }).catch(() => {});
     }
   }
 }
@@ -458,7 +502,7 @@ if (heroCta && 'IntersectionObserver' in window) new IntersectionObserver(es => 
 /* floating WhatsApp: pre-filled with what the visitor is looking at */
 const wa = $('#waFab');
 if (wa) wa.href = `https://wa.me/${BG.WHATSAPP}?text=` + encodeURIComponent('Hi Babyglee, I need help with: ' + document.title.replace(/\s*[—|-]\s*Babyglee.*$/, ''));
-document.addEventListener('click', e => { const a = e.target.closest('a[href*="wa.me"]'); if (a) T.push({ event: 'whatsapp_click', page_type: PAGE_TYPES[page] || 'info', link_location: a.id === 'waFab' ? 'floating_button' : 'page_link' }); });
+document.addEventListener('click', e => { const a = e.target.closest('a[href*="wa.me"]'); if (a) T.push({ event: 'whatsapp_click', event_id: T.eventId('whatsapp'), event_source_url: location.href, external_id: T.ids().external_id, fbp: T.ids().fbp, fbc: T.ids().fbc, page_type: PAGE_TYPES[page] || 'info', link_location: a.id === 'waFab' ? 'floating_button' : 'page_link' }); });
 refresh();
 /* ---------- cart sheet (floating cart button + header bag) ---------- */
 if (cartSheet) {
