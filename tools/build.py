@@ -143,9 +143,9 @@ def contact_fields():
     """Customer fields shared by the store checkout and the landing pages (same names, same validation)."""
     opts = "".join(f'<option value="{d.replace("-", " ")}">{d.replace("-", " ")}</option>' for d in DISTRICTS)
     return f"""<div class="fld"><label for="f-name">Your name</label><input id="f-name" name="name" autocomplete="name" required><small class="err"></small></div>
-      <div class="fld"><label for="f-phone">Mobile number</label><div class="phone"><span class="pfx"><span class="cc-code">BD</span>+88</span><input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="01XXXXXXXXX" aria-describedby="phoneHint" required></div><small class="fine" id="phoneHint">11 digits, starting with 01</small><small class="err"></small></div>
+      <div class="fld"><label for="f-phone">Mobile number</label><div class="phone"><span class="pfx"><span class="flag-bd" role="img" aria-label="Bangladesh flag"></span>+88</span><input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="01XXXXXXXXX" aria-describedby="phoneHint" required></div><small class="fine" id="phoneHint">11 digits, starting with 01</small><small class="err"></small></div>
       <div class="fld"><label for="f-email">Email <span class="opt-t">(optional)</span></label><input id="f-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com"><small class="err"></small></div>
-      <div class="fld"><label for="f-country">Country</label><div class="country"><span class="cc-code">BD</span><input id="f-country" name="country" value="Bangladesh" readonly aria-readonly="true"></div><small class="fine">We currently deliver to Bangladesh.</small></div>
+      <div class="fld"><label for="f-country">Country</label><div class="country"><span class="flag-bd" role="img" aria-label="Bangladesh flag"></span><input id="f-country" name="country" value="Bangladesh" readonly aria-readonly="true"></div><small class="fine">We currently deliver to Bangladesh.</small></div>
       <div class="fld"><label for="f-district">District</label><select id="f-district" name="district" autocomplete="address-level1" required><option value="">Select your district</option>{opts}</select><small class="err"></small></div>
       <div class="fld"><label for="f-addr">Full address</label><textarea id="f-addr" name="address" rows="3" autocomplete="street-address" placeholder="House, road, area, thana" required></textarea><small class="err"></small></div>
       <fieldset class="fld"><legend>Delivery area</legend>
@@ -208,10 +208,10 @@ def header(active="landing"):
   <a class="brand" href="index.html" aria-label="Babyglee home"><img src="img/logo.webp" alt="Babyglee — Because we love them!" width="117" height="87"></a>
   <nav class="nav" id="nav" aria-label="Main">{links}<a class="btn sm nav-cta" href="{'#shop' if landing else 'index.html#shop'}">Shop now</a></nav>
   <div class="ship" id="ship">
-    <button class="ship-btn" id="shipBtn" aria-expanded="false" aria-controls="shipMenu"><span class="cc-code">BD</span><span class="ship-t"><small>Shipping to</small>Bangladesh<span class="cur"> · ৳ BDT</span></span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+    <button class="ship-btn" id="shipBtn" aria-expanded="false" aria-controls="shipMenu"><span class="flag-bd" role="img" aria-label="Bangladesh flag"></span><span class="ship-t"><small>Shipping to</small>Bangladesh<span class="cur"> · ৳ BDT</span></span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
     <div class="ship-menu" id="shipMenu" hidden>
       <p class="sm-h">Shipping destination</p>
-      <div class="sm-opt on"><span class="cc-code">BD</span><b>Bangladesh</b>{ic("check")}</div>
+      <div class="sm-opt on"><span class="flag-bd" role="img" aria-label="Bangladesh flag"></span><b>Bangladesh</b>{ic("check")}</div>
       <p class="sm-n">Prices are in Bangladeshi taka (৳ BDT). The international price in USD is shown for reference.</p>
       <ul class="sm-l"><li>{ic("truck")} Home delivery</li><li>{ic("cash")} Cash on Delivery</li><li>{ic("exchange")} 72-hour exchange</li></ul>
     </div>
@@ -238,6 +238,15 @@ def footer(landing=False):
     </div>
   </section>
 </div>
+<div class="sheet-wrap" id="cartSheet" hidden>
+  <div class="sheet-scrim" data-close></div>
+  <section class="sheet cart-sheet" role="dialog" aria-modal="true" aria-labelledby="csTitle">
+    <header><h3 id="csTitle">Your cart</h3><button class="icon-btn" type="button" data-close aria-label="Close cart">{ic("close")}</button></header>
+    <div class="sheet-body"><div id="csLines"></div>
+      <div class="cs-empty" id="csEmpty" hidden><p>Your cart is empty.</p><button class="btn" type="button" data-close>Choose your pair</button></div></div>
+    <div class="cs-foot" id="csFoot"><div class="cs-tot"><span id="csCount">0 pairs</span><b id="csTotal">৳0</b></div><a class="btn block" id="csGo" href="checkout.html">Checkout</a><small>Delivery charge is added at checkout. Pay on delivery.</small></div>
+  </section>
+</div>
 <div class="sheet-wrap" id="shotBox" hidden>
   <div class="sheet-scrim" data-close></div>
   <section class="sheet shot" role="dialog" aria-modal="true" aria-label="Customer review">
@@ -245,6 +254,8 @@ def footer(landing=False):
     <div class="sheet-body"><img id="shotImg" src="img/logo.webp" alt="Customer review screenshot"></div>
   </section>
 </div>
+""" if landing else ""
+    cartfab = f"""<button class="fab fab-cart" id="cartFab" type="button" aria-label="View cart" hidden>{ic("bag")}<i class="js-cart-count">0</i></button>
 """ if landing else ""
     return f"""</main>
 <footer class="ftr">
@@ -257,7 +268,7 @@ def footer(landing=False):
     </div>
     <div><h4>Shop</h4><a href="index.html#shop">The Bounce series</a><a href="index.html#size">Size guide</a><a href="index.html#faq">FAQ</a></div>
     <div><h4>Company</h4><a href="shipping-returns.html">Shipping &amp; returns</a><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms &amp; conditions</a></div>
-    <div><h4>Get in touch</h4>
+    <div class="ftr-contact"><h4>Get in touch</h4>
       <a href="https://wa.me/{WA}">{ic("whatsapp")} {PHONE_DISPLAY}</a>
       <a href="mailto:info@babygleebd.com">{ic("mail")} info@babygleebd.com</a>
       <span class="ln">{ic("pin")} Dhaka office: Pallabi, Mirpur 12</span>
@@ -267,7 +278,7 @@ def footer(landing=False):
   <div class="wrap ftr-bottom"><span>© 2025 Babyglee® — A concern of AMC Knit Composite Ltd.</span><span>Trademark Reg. No. 210926 (Class 25) · Trade licence TRAD/DNCC/090476/2022</span></div>
 </footer>
 <a class="fab fab-wa" id="waFab" href="https://wa.me/{WA}" target="_blank" rel="noopener" aria-label="Chat with us on WhatsApp">{ic("whatsapp")}</a>
-{sheets}<div class="toast" id="toast" role="status"></div>
+{cartfab}{sheets}<div class="toast" id="toast" role="status"></div>
 <script src="assets/main.js"></script>
 </body>
 </html>
@@ -354,7 +365,6 @@ def page_index():
 <section class="sec" id="faq"><div class="wrap narrow"><div class="sec-head"><span class="eyebrow">FAQ</span><h2>Quick answers</h2></div>{faq_block()}</div></section>
 <section class="cta-band"><div class="wrap"><h2>Ready to bounce?</h2><p>Free to look, easy to order, pay when it arrives.</p>
   <div class="cta center"><a class="btn lg" href="#shop">Choose your pair</a><a class="btn lg wa" href="https://wa.me/{WA}" target="_blank" rel="noopener">{ic("whatsapp")} Ask on WhatsApp</a></div></div></section>
-<div class="cartbar" id="cartBar" hidden><div class="cb-info">{ic("bag")}<div><b id="cbCount">0 pairs</b><span id="cbTotal">৳0</span></div></div><a class="btn" href="checkout.html">Checkout →</a></div>
 """
     h += footer(landing=True)
     write("index.html", h)
@@ -393,7 +403,7 @@ def page_thanks():
   <div class="done" id="done" hidden>
     <span class="okc">{ic("check")}</span><h1>Thank you! Your order is placed.</h1>
     <p>Order ID <b id="oid"></b></p>
-    <dl class="recap"><div><dt>Items</dt><dd id="rItems"></dd></div><div><dt>Deliver to</dt><dd id="rA"></dd></div><div class="tot"><dt>Pay on delivery</dt><dd id="rT"></dd></div></dl>
+    <dl class="recap"><div><dt>Items</dt><dd><ul class="ritems" id="rItems"></ul></dd></div><div><dt>Deliver to</dt><dd id="rA"></dd></div><div class="tot"><dt>Pay on delivery</dt><dd id="rT"></dd></div></dl>
     <ol class="next"><li><b>We call you</b><span>Our team calls <b id="rPh"></b> to confirm your sizes and address.</span></li><li><b>We deliver</b><span>Your parcel is sent to your door.</span></li><li><b>You pay</b><span>Cash on Delivery, in taka, when it arrives.</span></li></ol>
     <p class="demo" id="demoNote" hidden>Demo mode: ordering is not connected yet, so this order was not sent to the Babyglee team.</p>
     <p class="fine">Need help? <a href="https://wa.me/{WA}" target="_blank" rel="noopener">Chat on WhatsApp</a> or call {PHONE_DISPLAY}. Wrong size? Exchange within 72 hours.</p>

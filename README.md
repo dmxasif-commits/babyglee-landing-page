@@ -29,6 +29,14 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-15: Mobile polish (flag, floating cart, receipt, footer)
+- Bangladesh flag icon replaces the "BD" badge (header country button, country menu, phone and country fields).
+- WhatsApp button moved to the right; a floating cart button sits above it (shown when the cart has items). Tapping it, or the bag in the header, opens a cart sheet with names, sizes, quantities, edit/remove, total and Checkout. The old bottom cart bar is removed.
+- Thank-you page redesigned for phones: stacked receipt (items with quantity on the right, delivery address, amount to pay).
+- Footer made shorter on phones: brand row, two-column links, two-column contact details.
+- Backup before this change: `backups/site-2026-11-15-before-mobile-polish.zip`.
+- Files: `tools/build.py`, `assets/main.js`, `assets/style.css`, regenerated `.html`. Tests: 32 (demo) + 49 (backend) pass.
+
 ### 2026-11-15: New landing-page site (this repository)
 - Rebuilt the earlier store site as a three-step landing page: choose products and sizes on page 1 (several products in one cart, sticky cart bar), checkout on page 2 (Cash on Delivery), thank-you on page 3.
 - Page 1 content: hero with ৳ and US$ price, trust strip, product cards with photo gallery and size chips, size guide sheet, why sneakers for kids, why Babyglee, sole anatomy with hotspots, size finder, reviews section (hidden until reviews exist), 3-step ordering, FAQ.

@@ -133,6 +133,7 @@ if (sizeModal) {
 
 
 const LISTS = {};
+const itemsHTML = items => items.map(i => `<li><span>${esc(i.product)}<small>EU ${esc(i.size)}</small></span><b>× ${+i.qty}</b></li>`).join('');
 const itemsOf = list => list.map((i, n) => T.item(i.slug, { size: i.size, qty: i.qty, index: n })).filter(Boolean);
 const valueOf = items => T.sum(items);
 
@@ -216,7 +217,7 @@ const SEND_ERR = "Sorry, we couldn't place your order. Please check your connect
 function sendFailed(res) { const e = $('#sendErr'); e.textContent = res.msg || SEND_ERR; e.hidden = false; $('#submitBtn').disabled = false; e.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 function showDone(order) {
   $('#oid').textContent = '#' + order.id;
-  $('#rItems').textContent = order.items.map(i => `${i.product} — EU ${i.size} × ${i.qty}`).join('\n');
+  $('#rItems').innerHTML = itemsHTML(order.items);
   $('#rA').textContent = order.address + ', ' + order.district + ' (' + order.area + ')';
   $('#rT').textContent = fmt(order.total); $('#rPh').textContent = order.phone;
   $('#demoNote').hidden = !!BG.ORDER_ENDPOINT;
@@ -286,11 +287,19 @@ const lineHTML = (i, edit) => {
 };
 
 let onCartChange = () => {};
+const cartSheet = $('#cartSheet');
+function drawCartSheet() {
+  if (!cartSheet) return;
+  const l = cart, n = count(), empty = !l.length;
+  $('#csLines').innerHTML = l.map(i => lineHTML(i, true)).join('');
+  $('#csEmpty').hidden = !empty; $('#csFoot').hidden = empty;
+  $('#csCount').textContent = n + (n === 1 ? ' pair' : ' pairs'); $('#csTotal').textContent = fmt(subtotal()); $('#csGo').textContent = 'Checkout — ' + fmt(subtotal());
+}
 function refresh() {
   const n = count();
   $$('.js-cart-count').forEach(c => { c.textContent = n; c.classList.toggle('on', n > 0); });
-  const bar = $('#cartBar');
-  if (bar) { bar.hidden = n === 0; $('#cbCount').textContent = n + (n === 1 ? ' pair' : ' pairs'); $('#cbTotal').textContent = fmt(subtotal()); document.body.classList.toggle('has-cartbar', n > 0); }
+  const cf = $('#cartFab'); if (cf) cf.hidden = n === 0;
+  drawCartSheet();
   $$('.pc').forEach(c => { const q = cart.filter(i => i.slug === c.dataset.slug).reduce((a, i) => a + i.qty, 0), b = $('.pc-in', c); if (b) b.textContent = q ? q + ' in cart' : ''; });
   onCartChange();
 }
@@ -403,7 +412,7 @@ if (page === 'thanks') {
   if (!o || !o.id) $('#noOrder').hidden = false;
   else {
     $('#done').hidden = false; $('#oid').textContent = '#' + o.id;
-    $('#rItems').textContent = o.items.map(i => `${i.product} — EU ${i.size} × ${i.qty}`).join('\n');
+    $('#rItems').innerHTML = itemsHTML(o.items);
     $('#rA').textContent = o.address + ', ' + o.district + ' (' + o.area + ')'; $('#rT').textContent = fmt(o.total); $('#rPh').textContent = o.phone;
     $('#demoNote').hidden = !o.demo;
     const k = 'bg_purchased'; let done = []; try { done = JSON.parse(sessionStorage.getItem(k) || '[]'); } catch (e) {}
@@ -420,4 +429,10 @@ const wa = $('#waFab');
 if (wa) wa.href = `https://wa.me/${BG.WHATSAPP}?text=` + encodeURIComponent('Hi Babyglee, I need help with: ' + document.title.replace(/\s*[—|-]\s*Babyglee.*$/, ''));
 document.addEventListener('click', e => { const a = e.target.closest('a[href*="wa.me"]'); if (a) T.push({ event: 'whatsapp_click', page_type: PAGE_TYPES[page] || 'info', link_location: a.id === 'waFab' ? 'floating_button' : 'page_link' }); });
 refresh();
+/* ---------- cart sheet (floating cart button + header bag) ---------- */
+if (cartSheet) {
+  const openCart = () => { drawCartSheet(); openSheet(cartSheet); if (cart.length) T.ecom('view_cart', { value: subtotal(), items: itemsOf(cart) }); };
+  document.addEventListener('click', e => { if (e.target.closest('#cartFab') || e.target.closest('a.cart-btn')) { e.preventDefault(); openCart(); } });
+  $('#csLines').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; const k = b.closest('.cl').dataset.k, a = b.dataset.act; a === 'inc' ? change(k, 1) : a === 'dec' ? change(k, -1) : removeLine(k); });
+}
 })();
