@@ -83,10 +83,14 @@ if ('IntersectionObserver' in window) {
 const CHART = [[21, 13.5, '12–18M'], [22, 14.0, '18–24M'], [23, 14.5, '2Y'], [24, 15.0, '2.5Y'], [25, 15.5, '3Y'], [26, 16.0, '3.5Y'], [27, 16.5, '4Y'], [28, 17.0, '4.5Y'],
   [29, 17.5, '5Y'], [30, 18.0, '5.5Y'], [31, 18.6, '6Y'], [32, 19.2, '6.5Y'], [33, 19.7, '7Y'], [34, 20.4, '8Y'], [35, 21.2, '9Y'], [36, 22.0, '10–12Y']];  // insole cm; insole = foot + 1 cm
 /* Size for a foot length: the smallest EU size whose insole is at least foot + 1 cm; one size up for wide feet or thick socks. */
+/* Returns { eu, age } or { eu: null, over: 'high' | 'low' } when the foot is outside what the chart supports (never a made-up size). */
 function sizeFor(foot, wide) {
-  const need = foot + 1; let i = CHART.findIndex(r => r[1] >= need - 0.001); if (i < 0) i = CHART.length - 1;
-  if (wide) i = Math.min(CHART.length - 1, i + 1);
-  return { eu: CHART[i][0], age: CHART[i][2], over: need > CHART[CHART.length - 1][1] + 0.001 };
+  const need = foot + 1, last = CHART.length - 1;
+  if (need > CHART[last][1] + 0.001) return { eu: null, over: 'high' };
+  if (foot < CHART[0][1] - 1.5 - 0.001) return { eu: null, over: 'low' };
+  let i = CHART.findIndex(r => r[1] >= need - 0.001);
+  if (wide) { if (i >= last) return { eu: null, over: 'high', wide: true }; i++; }
+  return { eu: CHART[i][0], age: CHART[i][2] };
 }
 /* Binds one finder block (ids start with prefix p); onChange(eu or null) lets the size sheet offer "Select EU xx". */
 function bindFinder(p, onChange) {
@@ -98,12 +102,19 @@ function bindFinder(p, onChange) {
     $$('tr[data-eu]', scope).forEach(r => r.classList.toggle('hl', false));
     if (!(v >= 8 && v <= 25)) { out.textContent = 'EU —'; age.textContent = inp.value ? 'Enter 8 to 25 cm' : 'Enter a length'; note.textContent = base; if (onChange) onChange(null); return; }
     const r = sizeFor(v, wide.checked);
+    if (!r.eu) {
+      out.textContent = 'EU —'; age.textContent = 'No matching size';
+      note.textContent = r.over === 'low' ? 'This is smaller than our smallest size (EU 21). Please message us and we will help.'
+        : r.wide ? 'A wider fit would need a size above EU 36, which we do not make. Please message us and we will help.' : 'This is longer than our biggest size (EU 36). Please message us and we will help.';
+      if (onChange) onChange(null); return;
+    }
     out.textContent = 'EU ' + r.eu; age.textContent = '≈ ' + r.age;
-    note.textContent = r.over ? 'This is longer than our biggest size (EU 36). Please message us and we will help.' : `Foot ${v.toFixed(1)} cm + 1 cm = ${(v + 1).toFixed(1)} cm insole${wide.checked ? ', one size up for wide feet or thick socks' : ''}.`;
+    note.textContent = `Foot ${v.toFixed(1)} cm + 1 cm = ${(v + 1).toFixed(1)} cm insole${wide.checked ? ', one size up for wide feet or thick socks' : ''}.`;
     $$('tr[data-eu="' + r.eu + '"]', scope).forEach(x => x.classList.add('hl'));
     if (onChange) onChange(r.eu);
   };
   inp.addEventListener('input', calc); wide.addEventListener('change', calc); calc();
+  return calc;
 }
 bindFinder('fs');
 
@@ -137,11 +148,11 @@ const sizeModal = $('#sizeModal');
 let sizeTarget = null;
 if (sizeModal) {
   const use = $('#szUse');
-  bindFinder('sz', eu => { use.dataset.eu = eu || ''; use.hidden = !(sizeTarget && eu); if (eu) use.textContent = 'Select EU ' + eu; });
+  const recalc = bindFinder('sz', eu => { use.dataset.eu = eu || ''; use.hidden = !(sizeTarget && eu); if (eu) use.textContent = 'Select EU ' + eu; });
   use.addEventListener('click', () => { if (sizeTarget && use.dataset.eu) sizeTarget(+use.dataset.eu); closeSheet(sizeModal); });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-open-size]'); if (!b) return;
-    sizeTarget = b.sizeTarget || null; use.hidden = true; openSheet(sizeModal);    T.push({ event: 'size_guide_open', page_type: PAGE_TYPES[page] || 'other' });
+    sizeTarget = b.sizeTarget || null; recalc(); openSheet(sizeModal);   // recalc: the kept measurement shows its "Select EU xx" button again    T.push({ event: 'size_guide_open', page_type: PAGE_TYPES[page] || 'other' });
   });
 }
 
@@ -439,6 +450,10 @@ if (page === 'thanks') {
     }
   }
 }
+
+/* floating WhatsApp stays out of the way while the hero buttons are on screen (it covered "Find my kid's size" on short phones) */
+const heroCta = $('.hero .cta');
+if (heroCta && 'IntersectionObserver' in window) new IntersectionObserver(es => document.body.classList.toggle('cta-vis', es[0].isIntersecting), { threshold: 0.01 }).observe(heroCta);
 
 /* floating WhatsApp: pre-filled with what the visitor is looking at */
 const wa = $('#waFab');

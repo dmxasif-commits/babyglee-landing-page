@@ -29,6 +29,16 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-15: Small screens, short screens and landscape
+- Hero: the background circle no longer covers the heading, price or note (it is sized to the picture area); on short and landscape screens the layout is tighter (landscape phones use two columns). The WhatsApp button hides while the hero buttons are on screen and returns when you scroll.
+- Checkout at 320px (and down to 300px): the form and the expanded "Order summary" no longer widen the page (grid columns and inputs can shrink; summary lines stack on very small phones).
+- Header at 320px and below: logo, country button, bag and menu all fit; the bag and menu buttons keep their full size (below 315px only the flag and arrow show for the country).
+- Size popup: reopening it keeps the typed measurement and shows "Select EU xx" again.
+- Size guide: nothing is suggested outside the chart. A foot over 21 cm (insole over 22 cm), a wide-foot choice at EU 36, or a foot under 12 cm shows "No matching size" with a message to contact us, and no Select button.
+- Tests: 65 new small-screen checks (10 screen sizes, checkout at 8 widths, popup and limits) + 43 size + 35 demo + 52 backend + 12 dataLayer pass.
+- Backup before this change: `backups/site-2026-11-15-before-small-screen-fixes.zip`.
+- Files: `assets/main.js`, `assets/style.css`.
+
 ### 2026-11-15: Size finder, menu, hero and checkout bar
 - Size recommendations now follow the live product guide: insole length = foot length + 1 cm (a 15 cm foot gives EU 26). The size table shows foot length, insole length and age for EU 21–36 from that chart; a "wide feet or thick socks" option moves one size up.
 - Size guide is now a full-width "Find the right size" button on every product card, above the EU sizes. The sheet has 3 measuring steps, a centimetre field, the suggested size and "Select EU xx". The same finder is in the Size guide section.
