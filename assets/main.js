@@ -150,17 +150,17 @@ function cleanPhone(v) {
 document.addEventListener('input', e => { const t = e.target; if (t && t.name === 'phone' && t.closest('.phone')) { const c = cleanPhone(t.value); if (c !== t.value) t.value = c; } });
 /* Incomplete orders: once the mobile number is valid, what the visitor typed is saved so the team can follow up if the order is not finished. */
 function watchLead(form, source, getItems) {
-  if (!BG.LEAD_ENDPOINT) return;
   let token = ''; try { token = sessionStorage.getItem('bg_lead') || ''; } catch (e) {}
   if (!token) { token = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).toLowerCase(); try { sessionStorage.setItem('bg_lead', token); } catch (e) {} }
-  let timer, last = '';
+  let timer, last = '', leadPushed = false;
   const send = () => {
     const ph = el(form, 'phone').value; if (!phoneOk(ph) || form.dataset.done) return;
     const a = T.attribution().last || {}, body = JSON.stringify({ token, source, phone: ph, name: el(form, 'name').value, email: el(form, 'email').value, district: el(form, 'district').value, address: el(form, 'address').value,
       area: el(form, 'district').value || el(form, 'address').value ? (el(form, 'area').value === 'dhaka' ? 'Inside Dhaka' : 'Outside Dhaka') : '',
       items: getItems().map(i => ({ slug: i.slug, size: +i.size || 0, qty: i.qty })), tracking: Object.assign({ page_url: location.href, referrer: document.referrer }, a, T.ids()) });
     if (body === last) return; last = body;
-    try { fetch(BG.LEAD_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: true }).catch(() => {}); } catch (e) {}
+    if (!leadPushed) { leadPushed = true; stageEvent('generate_lead', custOf(form), getItems(), el(form, 'area').value, { event_id: 'lead_' + token, lead_type: 'incomplete_checkout', page_type: 'checkout' }); }
+    if (BG.LEAD_ENDPOINT) try { fetch(BG.LEAD_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: true }).catch(() => {}); } catch (e) {}
   };
   const later = () => { clearTimeout(timer); timer = setTimeout(send, 1200); };
   form.addEventListener('input', later); form.addEventListener('change', later);
