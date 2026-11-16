@@ -29,6 +29,13 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-16: Deploy keeps the cPanel PHP version block
+- `tools/deploy.sh` no longer overwrites the cPanel-generated PHP handler block (`# php -- BEGIN/END cPanel-generated handler`, which holds "PHP 8.2 / ea-php82") when it replaces the web folder's `.htaccess`: the block is read first and appended to the new file (once, also after repeated deploys). Before, a deploy could drop the domain's PHP version setting.
+- `docs/deploy.md`: when the site is the account's main domain the Document Root is usually `public_html`; check the folder exists and save the path file.
+- Tests: deploy simulation now has an existing cPanel handler block (32 checks: block kept once, site rules present, nothing duplicated on a second deploy, rsync and copy fallback).
+- Backup before this change: `backups/site-2026-11-16-before-htaccess-preserve.zip`.
+- Files: `tools/deploy.sh`, `docs/deploy.md`.
+
 ### 2026-11-16: Hosting deploy from GitHub, real visitor IP behind Cloudflare
 - New `docs/deploy.md`: Cloudflare DNS/SSL, cPanel PHP and database, cPanel Git Version Control, auto-update by cron (merged changes go live within about 5 minutes), first-run checks.
 - New `tools/deploy.sh` and `.cpanel.yml`: copy only the website files (pages, `assets/`, `img/`, `admin/`, `api/`, `.htaccess`) into the web folder named in `~/.babyglee-deploy-path`; `api/config.php` and everything in `uploads/` are never touched; tools, docs, README and backups are not published; it refuses the home folder, `/` and missing folders; rsync removes files deleted from the repository, with a plain-copy fallback when rsync is missing.
