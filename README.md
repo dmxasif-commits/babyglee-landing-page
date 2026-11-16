@@ -29,6 +29,14 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-17: Update on request when the hosting does not allow exec()
+- The real hosting (LiteSpeed) switches PHP's `exec()` off, so the webhook answered 501 and could not start the update. `api/deploy.php` now writes a request file (`~/.babyglee-update-requested`) after a signed push to `main` and answers `{"ok":true,"queued":true}`; where `exec()` works it also starts the update at once (`started`).
+- `tools/auto-update.sh --on-request` (cron job, every minute): stops immediately unless the request file exists (no GitHub contact otherwise), claims the file atomically, deploys, removes it; a failed attempt is kept and retried for up to 60 minutes (then dropped and logged); paused updates keep the file; a webhook arriving mid-update is not lost. Without the argument the script behaves as before.
+- `docs/deploy.md` section 4 rewritten around this flow.
+- Tests: 44 sandbox checks (the earlier 29 + 15 new: no flag = nothing, no GitHub contact, flag = update and removal, nothing new, paused, retry after failure, give-up after an hour, webhook with `exec` disabled leaves the file and deploys nothing itself, other branch and wrong signature leave no file) + deploy and IP suites. Not tested: a real cPanel cron job.
+- Backup before this change: `backups/site-2026-11-17-before-flag-update.zip`.
+- Files: `api/deploy.php`, `tools/auto-update.sh`, `docs/deploy.md`.
+
 ### 2026-11-17: Test of the automatic update (GitHub webhook)
 - New harmless file `assets/version.txt`. After this is merged, it should appear at `/assets/version.txt` on the live site within seconds without any click in cPanel; that proves the webhook, `api/deploy.php`, `tools/auto-update.sh` and `tools/deploy.sh` work together on the real hosting. Nothing else changed.
 - Backup before this change: `backups/site-2026-11-17-before-update-test.zip`.

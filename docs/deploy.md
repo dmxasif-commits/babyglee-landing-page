@@ -35,22 +35,25 @@ GitHub (main)  --git pull every 5 min-->  ~/repositories/babyglee-landing-page  
 
 How a change reaches the site: you ask Claude in the chat → Claude changes the code, runs the tests, pushes a branch and opens a Pull Request → you say **"merge"** → the site updates itself. The word "merge" is the switch that sends a change live; nothing goes live without it.
 
-**A. Recommended: GitHub tells the server (no polling, no cron).** The server does nothing until you merge; the moment `main` changes on GitHub, GitHub calls the server and the site updates within seconds.
-1. In `api/config.php` on the server add a line `'deploy_secret' => 'a-long-random-text',` (see `api/config.sample.php`; use letters and digits, 40+ characters, and keep the same text for step 2).
+**A. Recommended: merge → GitHub webhook → request file → a tiny cron job.** The site is updated only after a merge; nothing contacts GitHub when nothing was merged.
+1. In `api/config.php` on the server add a line `'deploy_secret' => 'a-long-random-text',` (letters and digits, 40+ characters; the same text goes into GitHub in step 2).
 2. GitHub → repository **Settings → Webhooks → Add webhook**: Payload URL `https://shop.example.com/api/deploy.php`, Content type `application/json`, Secret = the same long text, "Just the push event", Active. Save.
-3. Check: Webhooks → your hook → **Recent Deliveries** → the first delivery (ping) must show a green tick and the response `{"ok":true,"pong":true}`. After the next merge a delivery shows `{"ok":true,"started":true}` and the site is updated a few seconds later.
-4. If a delivery shows 403 or a Cloudflare page: Cloudflare → Security → WAF → add a *Skip* rule for the path `/api/deploy.php` (GitHub's webhook calls are signed, so they are safe). If it shows **501**, PHP's `exec()` is switched off on your hosting: use B instead.
-5. A delivery that failed can be sent again from the same page (**Redeliver**).
+3. cPanel → **Cron Jobs** → add, every minute (`* * * * *`):
+   ```bash
+   /bin/bash $HOME/repositories/babyglee-landing-page/tools/auto-update.sh --on-request > /dev/null 2>&1
+   ```
+   With `--on-request` this job only looks whether the file `~/.babyglee-update-requested` exists. If it does not, it stops immediately: no network, no GitHub check, nothing logged. The webhook writes that file after a push to `main`; then the job pulls the new version, deploys it (after a backup) and removes the file. Failed attempts are kept and retried for up to an hour; everything is written to `~/deploy.log`.
+4. Check: Webhooks → your hook → **Recent Deliveries**. The answer for a push to `main` is `{"ok":true,"queued":true}` (your hosting does not let PHP run commands, so the cron job updates the site within a minute) or `{"ok":true,"started":true}` (PHP may run commands, so the update starts at once). A push to another branch answers `{"ok":true,"ignored":true}`.
+5. If a delivery shows 403 or a Cloudflare page: Cloudflare → Security → WAF → add a *Skip* rule for the path `/api/deploy.php` (GitHub's webhook calls are signed, so they are safe). `401 bad signature`: the Secret in GitHub and `deploy_secret` differ. `500 home folder not found`: add `'deploy_home' => '/home/cpaneluser',` to `api/config.php`.
+6. A failed delivery can be sent again from the same page (**Redeliver**).
 
-The address only acts on a request signed with your secret, only for a push to `main`, and it only ever runs the fixed update script (`tools/auto-update.sh`).
+The webhook address only acts on a request signed with your secret and only for a push to `main`. It never runs anything taken from the request: it writes the request file and, where the hosting allows it, starts the fixed script `tools/auto-update.sh`.
 
-**B. Without a webhook: two clicks when you want an update.** cPanel → **Git Version Control** → *Manage* → *Pull or Deploy* → **Update from Remote**, then **Deploy HEAD Commit**. If you also want a safety net, a cron job every 30 or 60 minutes (instead of every minute) is enough:
+**B. Without a webhook: two clicks when you want an update.** cPanel → **Git Version Control** → *Manage* → *Pull or Deploy* → **Update from Remote**, then **Deploy HEAD Commit**. Or a cron job every 30 or 60 minutes without `--on-request` (it asks GitHub whether `main` changed and deploys only when it did):
 
 ```bash
 /bin/bash $HOME/repositories/babyglee-landing-page/tools/auto-update.sh > /dev/null 2>&1
 ```
-
-It only fetches from GitHub and deploys when `main` has a newer commit, so most runs do nothing.
 
 **Holding updates.** To stop every automatic update for a while (for example during an ad campaign), create an empty file called `.babyglee-paused` in the home folder (cPanel File Manager → Home directory → + File). Delete the file to resume; the next update then brings the site up to date. `tools/rollback.sh` creates this file too.
 
