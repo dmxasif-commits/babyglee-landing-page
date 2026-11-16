@@ -29,6 +29,14 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-16: Hosting deploy from GitHub, real visitor IP behind Cloudflare
+- New `docs/deploy.md`: Cloudflare DNS/SSL, cPanel PHP and database, cPanel Git Version Control, auto-update by cron (merged changes go live within about 5 minutes), first-run checks.
+- New `tools/deploy.sh` and `.cpanel.yml`: copy only the website files (pages, `assets/`, `img/`, `admin/`, `api/`, `.htaccess`) into the web folder named in `~/.babyglee-deploy-path`; `api/config.php` and everything in `uploads/` are never touched; tools, docs, README and backups are not published; it refuses the home folder, `/` and missing folders; rsync removes files deleted from the repository, with a plain-copy fallback when rsync is missing.
+- Fix for sites behind Cloudflare: `client_ip()` now uses `CF-Connecting-IP`, but only when the request comes from a Cloudflare address. Before, every visitor looked like one of a few Cloudflare addresses, which would trip the per-address order and incomplete-order limits and send wrong IPs to Meta and server GTM.
+- Tests: 26 deploy checks in a simulated cPanel account (rsync and fallback, protected files, refusals, repeat run) and 11 client-IP checks (IPv4/IPv6, range edges, spoofed header); live-backend suites still pass. Not tested: a real cPanel account, cPanel Git Version Control, Cloudflare.
+- Backup before this change: `backups/site-2026-11-16-before-deploy-setup.zip`.
+- Files: `tools/deploy.sh`, `.cpanel.yml`, `api/lib.php`, `docs/deploy.md`, `docs/backend-setup.md`.
+
 ### 2026-11-16: Delivery retries, Meta fields, user agent (second tracking review)
 - Fixed my own regression: an inline comment had cut `order_id` and `content_type` (and the rest of that line) out of the Meta Conversions API `custom_data`. A test now checks them.
 - Server GTM request: Meta-ready matching fields sent separately from the Google ones (`meta_ph` is the phone as digits `880...` without `+`, plus `meta_em`, `meta_fn`, `meta_ln`, `meta_ct`, `meta_country`, `meta_external_id`); `ip_override` is also at the top level of the request; the request's User-Agent header is the customer's.

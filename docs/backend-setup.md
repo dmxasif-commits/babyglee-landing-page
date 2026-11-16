@@ -10,6 +10,8 @@ It is part of the same folder as the website: upload everything together.
 | Admin panel | `admin/` | Orders, status, analytics, products, settings (GTM, delivery, Meta), backup |
 | Product photos and review screenshots | `uploads/` | Images uploaded from the admin panel |
 
+For connecting your hosting to GitHub so that merged changes go live by themselves (cPanel Git, cron, Cloudflare), see `docs/deploy.md`. The steps below are the manual version.
+
 ## 1. Install (about 10 minutes)
 
 1. **Create the database.** cPanel → *MySQL Databases*: create a database, create a user with a strong password, add the user to the database with **All privileges**.
