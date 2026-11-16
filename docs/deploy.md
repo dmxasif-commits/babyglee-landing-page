@@ -58,6 +58,7 @@ From now on: merge on GitHub → live within 5 minutes. To update at once: Git V
 ## Things to know
 
 - cPanel keeps the domain's PHP version (for example "PHP 8.2 / ea-php82") in the web folder's `.htaccess`. The deploy keeps that block when it replaces `.htaccess`, so a deploy never changes the PHP version. If you change the PHP version in MultiPHP Manager later, cPanel rewrites the block itself.
+- The first deploy keeps a copy of the `.htaccess` that was there before (for example with cPanel's *Force HTTPS Redirect* rule) as `.htaccess.before-deploy`, and never overwrites that copy later. With Cloudflare's **Always Use HTTPS** on, the redirect to https already happens at Cloudflare. Important: if cPanel's Force HTTPS Redirect is on, Cloudflare's SSL/TLS mode must be **Full** or **Full (strict)**; with *Flexible* the browser loops with "too many redirects".
 - **Do not edit files on the server.** The next deploy overwrites `index.html`, `assets/`, `img/`, `admin/` and `api/` (except `config.php`). Change the repository instead.
 - Product photos and review screenshots (`uploads/`) exist only on the server. Include them in your cPanel backups; the admin JSON backup does not contain image files.
 - Settings, products, orders and reviews live in the database, so a deploy never changes them. The database upgrades itself when a new version needs new columns.

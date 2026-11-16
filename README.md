@@ -31,8 +31,9 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ### 2026-11-16: Deploy keeps the cPanel PHP version block
 - `tools/deploy.sh` no longer overwrites the cPanel-generated PHP handler block (`# php -- BEGIN/END cPanel-generated handler`, which holds "PHP 8.2 / ea-php82") when it replaces the web folder's `.htaccess`: the block is read first and appended to the new file (once, also after repeated deploys). Before, a deploy could drop the domain's PHP version setting.
-- `docs/deploy.md`: when the site is the account's main domain the Document Root is usually `public_html`; check the folder exists and save the path file.
-- Tests: deploy simulation now has an existing cPanel handler block (32 checks: block kept once, site rules present, nothing duplicated on a second deploy, rsync and copy fallback).
+- The first deploy also keeps a copy of the existing `.htaccess` (for example cPanel's Force HTTPS rule) as `.htaccess.before-deploy`; it is created once and never overwritten.
+- `docs/deploy.md`: when the site is the account's main domain the Document Root is usually `public_html`; check the folder exists and save the path file; Cloudflare must be on Full / Full (strict) when cPanel's Force HTTPS Redirect is on.
+- Tests: deploy simulation now has an existing cPanel handler block (36 checks: original .htaccess saved once, block kept once, site rules present, nothing duplicated on a second deploy, rsync and copy fallback).
 - Backup before this change: `backups/site-2026-11-16-before-htaccess-preserve.zip`.
 - Files: `tools/deploy.sh`, `docs/deploy.md`.
 

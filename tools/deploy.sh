@@ -29,6 +29,8 @@ if [ -z "${BG_NO_RSYNC:-}" ] && command -v rsync >/dev/null 2>&1; then use_rsync
 # cPanel stores the domain's PHP version ("PHP 8.2 / ea-php82") in the web folder's .htaccess, in a block between
 # "# php -- BEGIN cPanel-generated handler" and "# php -- END cPanel-generated handler". That block is kept when .htaccess is replaced,
 # so a deploy never changes the PHP version.
+# The first time, when the existing .htaccess is not ours yet (cPanel's own, for example with its Force HTTPS redirect), a copy is kept as .htaccess.before-deploy.
+if [ -f "$DEST/.htaccess" ] && ! grep -q '^# Babyglee' "$DEST/.htaccess" && [ ! -f "$DEST/.htaccess.before-deploy" ]; then cp -f "$DEST/.htaccess" "$DEST/.htaccess.before-deploy"; fi
 HT_BLOCK=""
 if [ -f "$DEST/.htaccess" ]; then HT_BLOCK="$(sed -n '/^# php -- BEGIN cPanel-generated handler/,/^# php -- END cPanel-generated handler/p' "$DEST/.htaccess")"; fi
 for f in "$SRC"/*.html; do [ -f "$f" ] && cp -f "$f" "$DEST/"; done
