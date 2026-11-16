@@ -14,4 +14,10 @@ return [
     'order_limit_per_hour' => 30,
     // Optional: lets a cPanel cron job call api/retry.php?key=... to retry failed server-side Purchase deliveries. Use a long random text, or delete this line.
     'cron_key' => 'CHANGE-THIS-TO-ANOTHER-LONG-RANDOM-TEXT',
+    // Optional, for instant updates: the secret you also type in GitHub > repository Settings > Webhooks (see docs/deploy.md). Use a long random text, or delete these two lines.
+    'deploy_secret' => 'CHANGE-THIS-TO-A-THIRD-LONG-RANDOM-TEXT',
+    // Optional: folder of the cPanel Git clone. Default: ~/repositories/babyglee-landing-page
+    // 'deploy_repo' => '/home/cpaneluser/repositories/babyglee-landing-page',
+    // Optional: the account's home folder, only if instant updates do not start (normally found automatically).
+    // 'deploy_home' => '/home/cpaneluser',
 ];

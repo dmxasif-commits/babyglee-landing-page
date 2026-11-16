@@ -29,6 +29,16 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-16: Auto-update from GitHub, instant webhook, backups, rollback
+- `tools/auto-update.sh` (cron, every minute): pulls `main` and deploys only when there is a newer commit; skips while paused or while another update runs; logs to `~/deploy.log`; a failed deploy is logged and retried on the next run.
+- `api/deploy.php` (optional GitHub webhook, a few seconds): needs `deploy_secret` in `api/config.php`, verifies GitHub's HMAC-SHA256 signature, reacts only to a push to `main`, runs only the fixed update script after answering; 404 without a secret, 401 for a wrong or missing signature, 501 when `exec()` is off.
+- `tools/deploy.sh`: one deploy at a time (lock), a backup of the live files before every deploy over an existing site (`~/deploy-backups`, newest 10, private), records the deployed commit; no duplicate cPanel PHP block when the new `.htaccess` already has it.
+- `tools/rollback.sh`: restores the previous (or a named) backup, backs up the current files first, pauses automatic updates (`~/.babyglee-paused`).
+- `docs/deploy.md` section 4 rewritten: chat → PR → "merge" → live; cron, webhook, backups and rollback.
+- Tests: 29 checks in a sandbox with a fake GitHub (deploy, no-op run, backup contents and permissions, retention, rollback, pause and resume, two updates at once, failed deploy retried, signed webhook accepted, wrong, missing and mismatched signatures refused, other branch ignored, ping, GET, no secret) + 36 deploy + 11 IP checks. Not tested: a real cPanel account, GitHub webhook delivery, Cloudflare.
+- Backup before this change: `backups/site-2026-11-16-before-auto-deploy.zip`.
+- Files: `tools/auto-update.sh` (new), `tools/rollback.sh` (new), `tools/deploy.sh`, `api/deploy.php` (new), `api/config.sample.php`, `docs/deploy.md`.
+
 ### 2026-11-16: Deploy keeps the cPanel PHP version block
 - `tools/deploy.sh` no longer overwrites the cPanel-generated PHP handler block (`# php -- BEGIN/END cPanel-generated handler`, which holds "PHP 8.2 / ea-php82") when it replaces the web folder's `.htaccess`: the block is read first and appended to the new file (once, also after repeated deploys). Before, a deploy could drop the domain's PHP version setting.
 - The first deploy also keeps a copy of the existing `.htaccess` (for example cPanel's Force HTTPS rule) as `.htaccess.before-deploy`; it is created once and never overwritten.
