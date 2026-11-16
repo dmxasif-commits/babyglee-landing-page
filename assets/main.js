@@ -362,6 +362,7 @@ function refresh() {
   $$('.js-cart-count').forEach(c => { c.textContent = n; c.classList.toggle('on', n > 0); });
   const bar = $('#cartBar');
   if (bar) { bar.hidden = n === 0; $('#cbGo').textContent = 'Checkout · ' + fmt(subtotal()); document.body.classList.toggle('has-cartbar', n > 0); }
+  const cf = $('#cartFab'); if (cf) cf.hidden = n === 0;
   drawCartSheet();
   $$('.pc').forEach(c => { const q = cart.filter(i => i.slug === c.dataset.slug).reduce((a, i) => a + i.qty, 0), b = $('.pc-in', c); if (b) b.textContent = q ? q + ' in cart' : ''; });
   onCartChange();
@@ -509,7 +510,7 @@ refresh();
 /* ---------- cart sheet (floating cart button + header bag) ---------- */
 if (cartSheet) {
   const openCart = () => { drawCartSheet(); openSheet(cartSheet); if (cart.length) T.ecom('view_cart', { value: subtotal(), items: itemsOf(cart) }); };
-  document.addEventListener('click', e => { if (e.target.closest('#cbView') || e.target.closest('a.cart-btn')) { e.preventDefault(); openCart(); } });
+  document.addEventListener('click', e => { if (e.target.closest('#cartFab') || e.target.closest('a.cart-btn')) { e.preventDefault(); openCart(); } });
   $('#csLines').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; const k = b.closest('.cl').dataset.k, a = b.dataset.act; a === 'inc' ? change(k, 1) : a === 'dec' ? change(k, -1) : removeLine(k); });
 }
 })();

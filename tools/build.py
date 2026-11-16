@@ -5,7 +5,7 @@ import json, pathlib, re
 OUT = pathlib.Path(__file__).resolve().parent.parent
 BASE = "https://dmxasif-commits.github.io/babyglee-landing-page/"  # change if you move to a custom domain
 PRICE, LIST = 1290, 1800
-PRICE_USD = 15  # international price, no discount (1,800 BDT list price at ~123 BDT/USD = $14.63)
+PRICE_USD = 30  # international price in US dollars, no discount
 WA = "8801974974973"
 PHONE_DISPLAY = "+880 1974-974973"
 
@@ -118,7 +118,7 @@ TRUST = [("cash", "Cash on Delivery", "Pay when it arrives"), ("truck", "Fast ho
 
 def trust_strip():
     return '<section class="trust"><div class="wrap trust-grid">' + "".join(
-        f'<div class="tr">{ic(i)}<div><b>{t}</b><span>{s}</span></div></div>' for i, t, s in TRUST) + "</div></section>"
+        f'<div class="tr">{ic(i)}<div><b>{t}</b><span>{s}</span></div></div>' for i, t, s in TRUST) + f'</div><div class="trust-dlv"><div class="wrap">{ic("truck")}<p>Order today, delivered in <b>3–5 working days</b> across Bangladesh</p></div></div></section>'
 
 FEATURES = [
  ("layers", "Multi-density sole", "Cushions every step and helps protect growing joints."),
@@ -134,7 +134,7 @@ def feature_cards():
         f'<article class="feat tilt"><span class="ficon">{ic(i)}</span><h3>{t}</h3><p>{d}</p></article>' for i, t, d in FEATURES) + "</div>"
 
 FAQ = [
- ("How does delivery work?", "We deliver to your home across the areas we serve. Our team calls or messages you to confirm your size and address before shipping."),
+ ("How does delivery work?", "We deliver to your home across the areas we serve, usually in 3–5 working days. Our team calls or messages you to confirm your size and address before shipping."),
  ("Can I pay on delivery?", "Yes. Cash on Delivery is available on every order."),
  ("What if the size doesn't fit?", "You can exchange within 72 hours of delivery. Delivery and return charges apply. See our Shipping &amp; Returns page."),
  ("Which sizes do you have?", "The Bounce series is available in EU sizes 21 to 36, suitable for roughly ages 1 to 10."),
@@ -173,7 +173,7 @@ def page_shipping():
     body = '''<p class="fine">Last updated: 2025</p>
 <h2>Shipping destination</h2><p>Babyglee is an international brand, and we currently ship to <b>Bangladesh</b>. Prices are in Bangladeshi taka (৳ BDT).</p>
 <h2>Delivery</h2><p>We deliver to your home across the areas we serve in Bangladesh. After you place an order, our team contacts you by call or message to confirm your child's size and your delivery address, and then ships the parcel.</p>
-<ul><li>Inside Dhaka and outside Dhaka delivery charges are shown at checkout before you confirm.</li><li>Delivery usually takes a few working days depending on your location.</li><li>Please keep your phone available so the courier can reach you.</li></ul>
+<ul><li>Inside Dhaka and outside Dhaka delivery charges are shown at checkout before you confirm.</li><li>Delivery usually takes <b>3–5 working days</b> after we confirm your order, depending on your location.</li><li>Please keep your phone available so the courier can reach you.</li></ul>
 <h2>Payment</h2><p>Cash on Delivery is available on all orders: you pay the courier when you receive your parcel. Please check the parcel before paying.</p>
 <h2>Exchange</h2><p>If the size doesn't fit, you can request an exchange within <b>72 hours</b> of delivery.</p>
 <ul><li>Shoes must be unused, clean and in their original packaging.</li><li>Delivery and return charges apply to exchanges.</li><li>Contact us by WhatsApp or phone with your order details to start an exchange.</li></ul>
@@ -264,7 +264,8 @@ def footer(landing=False):
   </section>
 </div>
 """ if landing else ""
-    cartfab = f"""<div class="cartbar" id="cartBar" hidden><button class="cb-view" id="cbView" type="button" aria-label="View cart">{ic("bag")}<i class="js-cart-count">0</i></button><a class="btn" id="cbGo" href="checkout.html">Checkout</a></div>
+    cartfab = f"""<div class="cartbar" id="cartBar" hidden><a class="btn" id="cbGo" href="checkout.html">Checkout</a></div>
+<button class="fab fab-cart" id="cartFab" type="button" aria-label="View cart" hidden>{ic("bag")}<i class="js-cart-count">0</i></button>
 """ if landing else ""
     return f"""</main>
 <footer class="ftr">
@@ -300,7 +301,7 @@ FAQ = [
  ("What if the size doesn't fit?", "You can exchange within 72 hours of delivery. Delivery and return charges apply. See our Shipping &amp; Returns page."),
  ("Which sizes do you have?", "The Bounce series comes in EU sizes 21 to 36, suitable for roughly ages 1 to 10. Use the size guide to match your child's foot length."),
  ("Are the shoes safe for kids?", "They are made from microfiber synthetic leather and breathable mesh, with chemical limits for REACH, phthalates and azo dyes."),
- ("Where do you deliver?", "We currently deliver to homes across Bangladesh, inside and outside Dhaka."),
+ ("Where do you deliver?", "We currently deliver to homes across Bangladesh, inside and outside Dhaka, usually in 3–5 working days."),
 ]
 
 def page_index():

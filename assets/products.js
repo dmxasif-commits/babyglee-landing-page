@@ -13,7 +13,7 @@ window.BG_PRODUCTS = {
   "colorHex": "#3fb4e8",
   "price": 1290,
   "listPrice": 1800,
-  "priceUsd": 15,
+  "priceUsd": 30,
   "sizes": [
    21,
    22,
@@ -48,7 +48,7 @@ window.BG_PRODUCTS = {
   "colorHex": "#3d7fa5",
   "price": 1290,
   "listPrice": 1800,
-  "priceUsd": 15,
+  "priceUsd": 30,
   "sizes": [
    21,
    22,
@@ -83,7 +83,7 @@ window.BG_PRODUCTS = {
   "colorHex": "#8a9096",
   "price": 1290,
   "listPrice": 1800,
-  "priceUsd": 15,
+  "priceUsd": 30,
   "sizes": [
    21,
    22,
@@ -118,7 +118,7 @@ window.BG_PRODUCTS = {
   "colorHex": "#26335a",
   "price": 1290,
   "listPrice": 1800,
-  "priceUsd": 15,
+  "priceUsd": 30,
   "sizes": [
    21,
    22,
@@ -153,7 +153,7 @@ window.BG_PRODUCTS = {
   "colorHex": "#262626",
   "price": 1290,
   "listPrice": 1800,
-  "priceUsd": 15,
+  "priceUsd": 30,
   "sizes": [
    21,
    22,

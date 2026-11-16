@@ -31,21 +31,42 @@ GitHub (main)  --git pull every 5 min-->  ~/repositories/babyglee-landing-page  
    ```
 4. Create the private config. In File Manager open the web folder → `api/` → copy `config.sample.php` to **`config.php`** and fill in the database name, user, password, a long random `setup_key` and, optionally, a long random `cron_key`. This file is never in GitHub and the deploy never touches it.
 
-## 4. Automatic updates
+## 4. Automatic updates (chat → GitHub → live site)
 
-cPanel → **Cron Jobs** → add (every 5 minutes):
+How a change reaches the site: you ask Claude in the chat → Claude changes the code, runs the tests, pushes a branch and opens a Pull Request → you say **"merge"** → the site updates itself. The word "merge" is the switch that sends a change live; nothing goes live without it.
+
+**A. Cron job (required, it is the safety net).** cPanel → **Cron Jobs** → add, every minute (`* * * * *`):
 
 ```bash
-cd $HOME/repositories/babyglee-landing-page && git pull --ff-only -q origin main && bash tools/deploy.sh > /dev/null 2>&1
+/bin/bash $HOME/repositories/babyglee-landing-page/tools/auto-update.sh > /dev/null 2>&1
 ```
 
-If you set a `cron_key`, add a second job (also every 5 minutes) for retrying failed Purchase deliveries:
+It checks GitHub, and when `main` has a newer commit it pulls it and deploys it (it does nothing otherwise). Live within about a minute of "merge". If your host does not allow a one-minute cron, use the shortest it allows.
+
+**B. Instant updates (optional, a few seconds).** GitHub tells the server the moment `main` changes:
+1. In `api/config.php` on the server add `'deploy_secret' => 'a-long-random-text',` (see `api/config.sample.php`).
+2. GitHub → repository **Settings → Webhooks → Add webhook**: Payload URL `https://shop.example.com/api/deploy.php`, Content type `application/json`, Secret = the same long text, "Just the push event", Active. After saving, *Recent Deliveries* must show a green tick.
+3. If it shows an error 403 or a Cloudflare page: Cloudflare → Security → WAF → add a *Skip* rule for the path `/api/deploy.php` (GitHub's webhook calls are signed, so they are safe). If PHP's `exec()` is switched off on the server you get 501; just keep the cron job.
+
+The address only acts on a request signed with your secret, only for a push to `main`, and it only ever runs the fixed update script.
+
+**C. Retries of failed Purchase deliveries (optional).** If you set a `cron_key`, add a job every 5 minutes:
 
 ```bash
 curl -s "https://shop.example.com/api/retry.php?key=YOUR_CRON_KEY" > /dev/null
 ```
 
-From now on: merge on GitHub → live within 5 minutes. To update at once: Git Version Control → *Manage* → *Update from Remote*, then *Deploy HEAD Commit*.
+### Backups and going back
+
+- Before every deploy over an existing site, the live files are saved as `~/deploy-backups/site-<date>-<commit>.tar.gz` (the newest 10 are kept; uploads and `config.php` are not in them). Every deploy is written to `~/deploy.log`.
+- **Something broke after an update?** In cPanel → Terminal:
+  ```bash
+  bash ~/repositories/babyglee-landing-page/tools/rollback.sh
+  ```
+  It puts the previous version back and **pauses** automatic updates (so the bad version does not come back). Then tell Claude in the chat to fix or revert it; after that is merged, resume with `rm ~/.babyglee-paused` and the site updates to the newest `main`. You can also give a specific backup file: `bash …/tools/rollback.sh ~/deploy-backups/site-….tar.gz`.
+- Database changes (new columns) are applied automatically and only add things, so a rollback of the files does not need a database rollback. For your data use cPanel → Backup and Admin → Settings → Download backup.
+
+To update at once by hand: Git Version Control → *Manage* → *Update from Remote*, then *Deploy HEAD Commit* (or run `bash ~/repositories/babyglee-landing-page/tools/auto-update.sh`).
 
 ## 5. First check
 

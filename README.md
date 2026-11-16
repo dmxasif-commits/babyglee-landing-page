@@ -21,13 +21,31 @@ Plus `shipping-returns.html`, `privacy.html`, `terms.html`.
 
 - **Customer reviews:** Admin → Reviews (text or a screenshot of a real review). The section stays hidden until you add one. No reviews or statistics are made up.
 - **More product photos:** Admin → Products → a product → *More photos*.
-- Placeholders to confirm: price ৳1,290 (list ৳1,800), US$15, delivery ৳80 inside / ৳130 outside Dhaka, WhatsApp number (Admin → Settings).
+- Placeholders to confirm: price ৳1,290 (list ৳1,800), US$30, delivery ৳80 inside / ৳130 outside Dhaka, WhatsApp number (Admin → Settings).
 
 ## Rules
 
 See `CLAUDE.md`: record every change below, back up before changing, mobile first, never commit `api/config.php`.
 
 ## Changelog
+
+### 2026-11-16: US$30, delivery time line, floating cart above WhatsApp
+- International price is now **US$30** (hero, product cards, product data). Schema v8 updates existing products whose US price is still the old default 15 to 30; a price you changed yourself in Admin is kept.
+- New full-width line under the four trust items on the home page: "Order today, delivered in **3–5 working days** across Bangladesh". FAQ ("How does delivery work?", "Where do you deliver?") and the Shipping & returns page now say 3–5 working days too.
+- Cart on phones: the bottom bar is now only the wide **Checkout · ৳…** button; the cart button is the floating round icon above the WhatsApp button (and the bag in the header). Both floating buttons hide while the hero buttons are on screen, and are smaller on short phones. The checkout page still sends `view_cart` + `begin_checkout` for every visitor who reaches it; opening the cart sheet sends one more `view_cart`.
+- Tests: 55 new (delivery line at 6 widths, US$30, button order and overlap, view_cart) + all earlier browser suites (35 + 12 + 43 + 65 + 31) + 34 and 52 backend + v7 to v8 migration check.
+- Backup before this change: `backups/site-2026-11-16-before-price-delivery-cart.zip` (made without the `backups/` folder).
+- Files: `tools/build.py`, `assets/main.js`, `assets/style.css`, `api/lib.php`, generated pages.
+
+### 2026-11-16: Auto-update from GitHub, instant webhook, backups, rollback
+- `tools/auto-update.sh` (cron, every minute): pulls `main` and deploys only when there is a newer commit; skips while paused or while another update runs; logs to `~/deploy.log`; a failed deploy is logged and retried on the next run.
+- `api/deploy.php` (optional GitHub webhook, a few seconds): needs `deploy_secret` in `api/config.php`, verifies GitHub's HMAC-SHA256 signature, reacts only to a push to `main`, runs only the fixed update script after answering; 404 without a secret, 401 for a wrong or missing signature, 501 when `exec()` is off.
+- `tools/deploy.sh`: one deploy at a time (lock), a backup of the live files before every deploy over an existing site (`~/deploy-backups`, newest 10, private), records the deployed commit; no duplicate cPanel PHP block when the new `.htaccess` already has it.
+- `tools/rollback.sh`: restores the previous (or a named) backup, backs up the current files first, pauses automatic updates (`~/.babyglee-paused`).
+- `docs/deploy.md` section 4 rewritten: chat → PR → "merge" → live; cron, webhook, backups and rollback.
+- Tests: 29 checks in a sandbox with a fake GitHub (deploy, no-op run, backup contents and permissions, retention, rollback, pause and resume, two updates at once, failed deploy retried, signed webhook accepted, wrong, missing and mismatched signatures refused, other branch ignored, ping, GET, no secret) + 36 deploy + 11 IP checks. Not tested: a real cPanel account, GitHub webhook delivery, Cloudflare.
+- Backup before this change: `backups/site-2026-11-16-before-auto-deploy.zip`. This and all later backups are made without the `backups/` folder (`git archive --format=zip -o backups/<name>.zip origin/main -- . ':(exclude)backups'`): before, each backup contained every earlier one and doubled in size, and the last one (142 MB) hit GitHub's 100 MB file limit. The older zips in the repository add up to about 140 MB and make the first clone slow; they can be moved out of the repository when you decide.
+- Files: `tools/auto-update.sh` (new), `tools/rollback.sh` (new), `tools/deploy.sh`, `api/deploy.php` (new), `api/config.sample.php`, `docs/deploy.md`.
 
 ### 2026-11-16: Deploy keeps the cPanel PHP version block
 - `tools/deploy.sh` no longer overwrites the cPanel-generated PHP handler block (`# php -- BEGIN/END cPanel-generated handler`, which holds "PHP 8.2 / ea-php82") when it replaces the web folder's `.htaccess`: the block is read first and appended to the new file (once, also after repeated deploys). Before, a deploy could drop the domain's PHP version setting.

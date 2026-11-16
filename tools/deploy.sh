@@ -9,9 +9,12 @@
 #
 # Never touched on the server: api/config.php (database login) and everything in uploads/ (product photos, review screenshots).
 # Not copied at all: tools/, docs/, backups/, README.md, CLAUDE.md and other repository files.
+#
+# Before every deploy over an existing site, a backup of the live files (not uploads/, not api/config.php) is saved in ~/deploy-backups (the newest 10 are kept);
+# tools/rollback.sh puts one back. After a successful deploy the commit is written to ~/.babyglee-deployed-commit (tools/auto-update.sh reads it).
 set -euo pipefail
 
-SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SRC="${BG_SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 HOME_DIR="${HOME:-}"
 if [ -n "${BG_DEPLOY_PATH:-}" ]; then DEST="$BG_DEPLOY_PATH"
 elif [ -n "$HOME_DIR" ] && [ -f "$HOME_DIR/.babyglee-deploy-path" ]; then DEST="$(head -n 1 "$HOME_DIR/.babyglee-deploy-path" | tr -d '\r')"
@@ -21,6 +24,18 @@ DEST="${DEST%/}"
 # Safety: only an existing folder that is not the home folder or the root of the server.
 if [ -z "$DEST" ] || [ "$DEST" = "$HOME_DIR" ] || [ "$DEST" = "/" ]; then echo "Refusing to deploy to '$DEST'. Set the web folder (see the comments in this file)."; exit 1; fi
 if [ ! -d "$DEST" ]; then echo "Web folder not found: $DEST"; exit 1; fi
+
+# Only one deploy at a time (a second one started meanwhile just stops).
+if command -v flock >/dev/null 2>&1; then exec 9>"${HOME_DIR:-/tmp}/.babyglee-deploy.lock"; flock -n 9 || { echo "Another deploy is running: skipped."; exit 0; }; fi
+
+# Backup of the live site before anything is changed.
+BK_DIR="${BG_BACKUP_DIR:-$HOME_DIR/deploy-backups}"
+if [ -z "${BG_NO_BACKUP:-}" ] && [ -f "$DEST/index.html" ]; then
+  mkdir -p "$BK_DIR" && chmod 700 "$BK_DIR"
+  BK="$BK_DIR/site-$(date +%Y%m%d-%H%M%S)-$(cut -c1-7 "$HOME_DIR/.babyglee-deployed-commit" 2>/dev/null || echo none).tar.gz"
+  (cd "$DEST" && tar -czf "$BK" --exclude='./uploads' --exclude='./api/config.php' --exclude='./.git' .) && chmod 600 "$BK" && echo "Backup of the live site: $BK"
+  ls -1t "$BK_DIR"/site-*.tar.gz 2>/dev/null | tail -n +11 | while read -r old; do rm -f "$old"; done
+fi
 
 use_rsync=0
 if [ -z "${BG_NO_RSYNC:-}" ] && command -v rsync >/dev/null 2>&1; then use_rsync=1; fi
@@ -35,7 +50,7 @@ HT_BLOCK=""
 if [ -f "$DEST/.htaccess" ]; then HT_BLOCK="$(sed -n '/^# php -- BEGIN cPanel-generated handler/,/^# php -- END cPanel-generated handler/p' "$DEST/.htaccess")"; fi
 for f in "$SRC"/*.html; do [ -f "$f" ] && cp -f "$f" "$DEST/"; done
 cp -f "$SRC/.htaccess" "$DEST/.htaccess"
-if [ -n "$HT_BLOCK" ]; then printf '\n%s\n' "$HT_BLOCK" >> "$DEST/.htaccess"; fi
+if [ -n "$HT_BLOCK" ] && ! grep -q 'BEGIN cPanel-generated handler' "$DEST/.htaccess"; then printf '\n%s\n' "$HT_BLOCK" >> "$DEST/.htaccess"; fi
 
 # Folders. With rsync, files that were removed from the repository are removed here too (config.php is always kept).
 for d in assets img admin api; do
@@ -49,4 +64,5 @@ mkdir -p "$DEST/uploads"
 [ -f "$SRC/uploads/.htaccess" ] && cp -f "$SRC/uploads/.htaccess" "$DEST/uploads/.htaccess"
 
 if [ ! -f "$DEST/api/config.php" ]; then echo "Note: $DEST/api/config.php does not exist yet. Create it from api/config.sample.php (see docs/deploy.md)."; fi
-echo "Deployed $(cd "$SRC" && git rev-parse --short HEAD 2>/dev/null || echo files) to $DEST"
+if [ -z "${BG_NO_RECORD:-}" ]; then git -C "$SRC" rev-parse HEAD > "$HOME_DIR/.babyglee-deployed-commit" 2>/dev/null || true; fi
+echo "Deployed $(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo files) to $DEST"
