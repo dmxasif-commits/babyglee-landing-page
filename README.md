@@ -29,6 +29,11 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-16: Webhook is the recommended way to update (no per-minute cron)
+- `docs/deploy.md` section 4 reordered: **A** the GitHub webhook (the server updates only when `main` changes, i.e. when you say "merge"; includes how to check Recent Deliveries and what 403 / 501 mean), **B** two clicks in cPanel Git Version Control, with an optional cron every 30–60 minutes as a safety net instead of every minute, and how to hold updates with `~/.babyglee-paused`. No code changed (`api/deploy.php` and `tools/auto-update.sh` were added earlier).
+- Backup before this change: `backups/site-2026-11-16-before-webhook-docs.zip`.
+- Files: `docs/deploy.md`.
+
 ### 2026-11-16: US$30, delivery time line, floating cart above WhatsApp
 - International price is now **US$30** (hero, product cards, product data). Schema v8 updates existing products whose US price is still the old default 15 to 30; a price you changed yourself in Admin is kept.
 - New full-width line under the four trust items on the home page: "Order today, delivered in **3–5 working days** across Bangladesh". FAQ ("How does delivery work?", "Where do you deliver?") and the Shipping & returns page now say 3–5 working days too.
