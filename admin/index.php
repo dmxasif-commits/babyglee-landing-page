@@ -84,13 +84,15 @@ if (!$me) {
 }
 $isAdmin = $me['role'] === 'admin';
 if ($page === 'logout' && $isPost) { $_SESSION = []; session_destroy(); go(); }
+/* Server Purchase deliveries that are due for a retry run after the page has been sent, so opening the admin never waits for them. */
+register_shutdown_function(function () use ($pdo) { if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request(); try { retry_dispatches($pdo, 2); } catch (Throwable $e) { error_log('Babyglee purchase retry: ' . $e->getMessage()); } });
 /* Staff can work on orders only. Products, prices, profit, ads, settings, exports and accounts are for admins. */
 $staffPages = ['dashboard', 'orders', 'order', 'leads', 'lead', 'print', 'neworder', 'account'];
 $staffActs = ['status', 'ship', 'bulk', 'lead_cancel', 'lead_reopen', 'lead_delete', 'lead_convert', 'note', 'neworder', 'password'];
 if (!$isAdmin && (!in_array($page, $staffPages, true) || ($isPost && !in_array((string) ($_POST['act'] ?? ''), $staffActs, true)))) { flash('That page is only for admins.'); go(); }
 
 /* Creates an order from the admin panel (manual order or a confirmed incomplete order). Prices, delivery and stock are handled here. */
-function make_order(PDO $pdo, array $in, string $source, string $status, array $tr, string $email, string $ip, string $note, string $logNote, string $by): array {
+function make_order(PDO $pdo, array $in, string $source, string $status, array $tr, string $email, string $ip, string $note, string $logNote, string $by, string $ua = ''): array {
     $name = mb_substr(trim((string) ($in['name'] ?? '')), 0, 120); $phone = bd_phone((string) ($in['phone'] ?? '')); $district = mb_substr(trim((string) ($in['district'] ?? '')), 0, 60); $address = mb_substr(trim((string) ($in['address'] ?? '')), 0, 600);
     $areaKey = ($in['area'] ?? '') === 'dhaka' ? 'dhaka' : 'outside'; $cat = products(true); $items = []; $sub = 0; $cost = 0;
     foreach ((array) ($in['it_slug'] ?? []) as $n => $slug) {
@@ -108,7 +110,7 @@ function make_order(PDO $pdo, array $in, string $source, string $status, array $
     foreach ($items as $i) { $p = $cat[$i['slug']]; if (!$p['track']) continue; $take->execute([$i['qty'], $p['id'], $i['size'], $i['qty']]); if ($take->rowCount() !== 1) { $pdo->rollBack(); return ['err' => $p['name'] . ' EU ' . $i['size'] . ' just sold out.']; } }
     $pdo->prepare('INSERT INTO orders (id, created_at, status, source, name, phone, email, district, address, area, subtotal, delivery, total, items, tracking, ip, user_agent, note, cost, stock_held, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?)')
         ->execute([$oid, now(), $status, $source, $name, '+' . $phone, $email, $district, $address, $areaKey === 'dhaka' ? 'Inside Dhaka' : 'Outside Dhaka', $sub, $delivery, $sub + $delivery,
-            json_encode($items, JSON_UNESCAPED_UNICODE), json_encode($tr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $ip, '', $note, $cost, $by]);
+            json_encode($items, JSON_UNESCAPED_UNICODE), json_encode($tr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $ip, mb_substr($ua, 0, 400), $note, $cost, $by]);
     $pdo->prepare('INSERT INTO order_log (order_id, created_at, status, note, by_user) VALUES (?,?,?,?,?)')->execute([$oid, now(), $status, $logNote, $by]);
     $pdo->prepare('DELETE FROM leads WHERE phone = ?')->execute(['+' . $phone]);
     $pdo->commit();
@@ -161,12 +163,20 @@ if ($isPost) {
     if ($act === 'lead_convert') {
         $lid = (int) $_POST['id']; $ls = $pdo->prepare('SELECT * FROM leads WHERE id = ?'); $ls->execute([$lid]); $lead = $ls->fetch();
         if (!$lead) { flash('This incomplete order no longer exists.'); go('p=leads'); }
-        $res = make_order($pdo, $_POST, (string) $lead['source'], 'confirmed', json_decode((string) $lead['tracking'], true) ?: [], (string) $lead['email'], (string) $lead['ip'], 'Recovered from an incomplete order', 'Created from an incomplete order (confirmed by phone)', $me['name']);
+        $res = make_order($pdo, $_POST, (string) $lead['source'], 'confirmed', json_decode((string) $lead['tracking'], true) ?: [], (string) $lead['email'], (string) $lead['ip'], 'Recovered from an incomplete order', 'Created from an incomplete order (confirmed by phone)', $me['name'], (string) ($lead['user_agent'] ?? ''));
         if (isset($res['err'])) { flash('Not confirmed: ' . $res['err']); go('p=lead&id=' . $lid); }
         $pdo->prepare('DELETE FROM leads WHERE id = ?')->execute([$lid]);
         /* This customer never reached the thank-you page, so the browser sent no Purchase: send it from here (Meta / server GTM, if set up in Settings). */
         try { dispatch_purchase($pdo, $res['id'], 'recovered'); } catch (Throwable $e) { error_log('Babyglee purchase dispatch: ' . $e->getMessage()); }
         flash('Order #' . $res['id'] . ' created and confirmed.'); go('p=order&id=' . $res['id']);
+    }
+    if ($act === 'dispatch_retry') {
+        $oid = (string) ($_POST['id'] ?? ''); $r = $pdo->prepare('SELECT dispatch FROM orders WHERE id = ?'); $r->execute([$oid]); $raw = $r->fetchColumn();
+        if ($raw === false) { flash('That order no longer exists.'); go('p=orders'); }
+        $st = json_decode((string) $raw, true); if (!is_array($st)) $st = ['origin' => 'web', 'tries' => 0, 'dest' => []]; $st['tries'] = 0;
+        $pdo->prepare("UPDATE orders SET dispatch = ?, dispatch_state = 'pending', dispatch_next = ? WHERE id = ?")->execute([json_encode($st), date('Y-m-d H:i:s'), $oid]);
+        retry_dispatches($pdo, 1);
+        flash('Delivery tried again. See the result below.'); go('p=order&id=' . rawurlencode($oid));
     }
     if ($act === 'neworder') {
         $channels = ['phone' => 'phone call', 'messenger' => 'facebook inbox', 'whatsapp' => 'whatsapp', 'instagram' => 'instagram inbox', 'shop' => 'walk-in / other'];
@@ -557,7 +567,7 @@ if ($page === 'order') {
       <h3>Courier</h3><form method="post">' . $csrf . '<input type="hidden" name="act" value="ship"><input type="hidden" name="id" value="' . h($o['id']) . '"><div class="f2"><label>Courier<input name="courier" maxlength="60" list="couriers" value="' . h($o['courier']) . '" placeholder="e.g. Pathao"></label><label>Tracking / consignment ID<input name="tracking_code" maxlength="80" value="' . h($o['tracking_code']) . '"></label></div><datalist id="couriers"><option value="Pathao"><option value="Steadfast"><option value="RedX"><option value="Sundarban"><option value="eCourier"><option value="Paperfly"></datalist><button class="btn sm">Save courier</button></form>
       <h3>Where it came from</h3><table class="tbl small">';
     foreach (['utm_source' => 'UTM source', 'utm_medium' => 'UTM medium', 'utm_campaign' => 'UTM campaign', 'utm_term' => 'Ad set (utm_term)', 'utm_content' => 'Ad / creative (utm_content)', 'fbclid' => 'Meta click ID', 'gclid' => 'Google click ID', 'referrer' => 'Referrer', 'page_url' => 'Order page', 'event_id' => 'Event ID'] as $k => $l) if (!empty($t[$k])) echo '<tr><td>' . $l . '</td><td class="brk">' . h($t[$k]) . '</td></tr>';
-    echo '<tr><td>Meta CAPI</td><td>' . h($o['capi_status'] ?: 'not configured') . '</td></tr><tr><td>IP</td><td>' . h($o['ip']) . '</td></tr></table></section></div>';
+    echo '<tr><td>Server Purchase</td><td>' . h($o['capi_status'] ?: 'not configured') . (in_array((string) $o['dispatch_state'], ['pending', 'failed'], true) ? '<form method="post" style="margin-top:8px">' . $csrf . '<input type="hidden" name="act" value="dispatch_retry"><input type="hidden" name="id" value="' . h($o['id']) . '"><button class="btn sm ghost">Try again now</button></form>' : '') . '</td></tr><tr><td>IP</td><td>' . h($o['ip']) . '</td></tr></table></section></div>';
     page_foot(); exit;
 }
 
@@ -697,6 +707,9 @@ $openLeads = (int) $pdo->query("SELECT COUNT(*) FROM leads WHERE status = 'new'"
 if ($openLeads) echo '<a class="alert soft" href="index.php?p=leads"><b>' . $openLeads . '</b> incomplete order' . ($openLeads > 1 ? 's' : '') . ' to follow up →</a>';
 if ($lowStock) echo '<a class="alert warn" href="index.php?p=products"><b>Low stock (3 pairs or fewer):</b> ' . h(implode(' · ', array_slice($lowStock, 0, 6))) . ' →</a>';
 if ($k['pending']) echo '<a class="alert" href="index.php?p=orders&status=pending"><b>' . $k['pending'] . '</b> order' . ($k['pending'] > 1 ? 's' : '') . ' waiting to be confirmed →</a>';
+$dp = $pdo->query("SELECT dispatch_state, COUNT(*) FROM orders WHERE dispatch_state IN ('pending', 'failed') GROUP BY dispatch_state")->fetchAll(PDO::FETCH_KEY_PAIR);
+if (!empty($dp['failed'])) echo '<a class="alert warn" href="index.php?p=orders"><b>' . (int) $dp['failed'] . '</b> server Purchase delivery failed after all tries. Open the order and press "Try again now", or check Settings →</a>';
+if (!empty($dp['pending'])) echo '<a class="alert soft" href="index.php?p=orders"><b>' . (int) $dp['pending'] . '</b> server Purchase delivery waiting to be retried →</a>';
 if (setting('gtm_id') === '') echo '<a class="alert soft" href="index.php?p=settings">Tracking is off: add your GTM container ID in Settings →</a>';
 echo '<div class="kpis"><div class="card kpi"><span>Today</span><b>' . $k['today'] . '</b><small>' . taka($k['today_value']) . '</small></div>
   <div class="card kpi"><span>Orders (' . $days . 'd)</span><b>' . $valid . '</b><small>' . $k['cancelled'] . ' cancelled / returned</small></div>

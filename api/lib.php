@@ -45,7 +45,7 @@ function migrate(PDO $pdo, bool $sqlite): void {
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
     $ver = 0;
     try { $ver = (int) $pdo->query("SELECT v FROM settings WHERE k = 'schema_version'")->fetchColumn(); } catch (Throwable $e) { /* first run */ }
-    if ($ver >= 6) return;
+    if ($ver >= 7) return;
     if ($ver < 1) {
     $ai = $sqlite ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT AUTO_INCREMENT PRIMARY KEY';
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
@@ -108,6 +108,12 @@ function migrate(PDO $pdo, bool $sqlite): void {
     $pdo->exec("CREATE TABLE IF NOT EXISTS reviews (id $ai, name VARCHAR(80) NOT NULL, city VARCHAR(60) NOT NULL DEFAULT '', rating INT NOT NULL DEFAULT 5, body TEXT, img VARCHAR(255) NOT NULL DEFAULT '',
         active TINYINT NOT NULL DEFAULT 1, sort INT NOT NULL DEFAULT 0, created_at DATETIME NOT NULL)$eng");
     set_setting('schema_version', '6');
+    /* version 7: durable delivery of server-side Purchase events (state, tries, next try) and the customer's user agent on incomplete orders */
+    foreach (["ALTER TABLE orders ADD COLUMN dispatch TEXT", "ALTER TABLE orders ADD COLUMN dispatch_state VARCHAR(10) NOT NULL DEFAULT ''", "ALTER TABLE orders ADD COLUMN dispatch_next DATETIME NULL",
+        "ALTER TABLE leads ADD COLUMN user_agent VARCHAR(400) NOT NULL DEFAULT ''"] as $q) {
+        try { $pdo->exec($q); } catch (Throwable $e) { /* column already exists */ }
+    }
+    set_setting('schema_version', '7');
 }
 
 function now(): string { return date('Y-m-d H:i:s'); }
@@ -177,6 +183,23 @@ function json_out(array $data, int $code = 200): void {
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+/* Answers the visitor first, then runs $after (slow work such as sending the Purchase to Meta or server GTM), so the customer never waits for it. */
+function json_out_then(array $data, callable $after): void {
+    $body = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    http_response_code(200);
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    header('Content-Length: ' . strlen((string) $body));
+    header('Connection: close');
+    ignore_user_abort(true);
+    echo $body;
+    if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+    elseif (function_exists('litespeed_finish_request')) litespeed_finish_request();
+    else { while (ob_get_level() > 0) @ob_end_flush(); flush(); }
+    try { $after(); } catch (Throwable $e) { error_log('Babyglee after-response work: ' . $e->getMessage()); }
     exit;
 }
 

@@ -12,4 +12,6 @@ return [
     'setup_key' => 'CHANGE-THIS-TO-A-LONG-RANDOM-TEXT',
     // Most orders accepted per hour from one internet address (protects against order spam). Mobile networks share addresses, so keep it generous.
     'order_limit_per_hour' => 30,
+    // Optional: lets a cPanel cron job call api/retry.php?key=... to retry failed server-side Purchase deliveries. Use a long random text, or delete this line.
+    'cron_key' => 'CHANGE-THIS-TO-ANOTHER-LONG-RANDOM-TEXT',
 ];

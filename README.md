@@ -29,6 +29,17 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-16: Delivery retries, Meta fields, user agent (second tracking review)
+- Fixed my own regression: an inline comment had cut `order_id` and `content_type` (and the rest of that line) out of the Meta Conversions API `custom_data`. A test now checks them.
+- Server GTM request: Meta-ready matching fields sent separately from the Google ones (`meta_ph` is the phone as digits `880...` without `+`, plus `meta_em`, `meta_fn`, `meta_ln`, `meta_ct`, `meta_country`, `meta_external_id`); `ip_override` is also at the top level of the request; the request's User-Agent header is the customer's.
+- Incomplete orders now keep the customer's user agent (`leads.user_agent`), carried into the order created from Admin → Incomplete.
+- Durable delivery: `api/dispatch.php` (moved out of `capi.php`) keeps a status per destination, retries failures after 1, 5, 15, 60 and 240 minutes (six tries), never resends what already succeeded, and runs after the order answer is sent (customers never wait for it). Retries run when an admin page opens, when an order arrives, and from the optional cron endpoint `api/retry.php?key=...` (`cron_key` in `api/config.php`). Order page: status and "Try again now"; dashboard warns about failed deliveries. Schema v7 (`orders.dispatch*`, `leads.user_agent`); a v6 database upgrades in place.
+- Page leave: if `sendBeacon()` refuses the save (returns false) a keepalive request is sent instead.
+- Checkout waits at most 1.2 s for tracking (both steps run together), not two 2 s waits in a row.
+- Tests: 31 browser checks, 34 backend checks (mock Meta and server GTM that can fail or stall), v6 to v7 upgrade, plus 35 demo + 52 backend + 12 dataLayer + 43 size + 65 small-screen pass. Not tested: a real server GTM container, Meta delivery, real EMQ.
+- Backup before this change: `backups/site-2026-11-16-before-delivery-retries.zip`.
+- Files: `api/dispatch.php` (new), `api/retry.php` (new), `api/capi.php`, `api/order.php`, `api/lead.php`, `api/lib.php`, `api/config.sample.php`, `.htaccess`, `admin/index.php`, `assets/main.js`, `docs/`.
+
 ### 2026-11-16: Tracking reliability (from the tracking review)
 - Incomplete orders: a save counts as done only after the backend answers ok; network errors and 5xx/408/429 are retried (2, 5, 15, 40 s); the page-leave save uses `sendBeacon`; the `generate_lead` event is sent after the first confirmed save.
 - `view_item_list` now fires when the first product card shows (it could never fire on a 320x568 phone before).
