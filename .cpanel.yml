@@ -1,0 +1,6 @@
+---
+# cPanel > Git Version Control > Manage > "Deploy HEAD Commit" runs these tasks in the repository folder.
+# The web folder is set once in ~/.babyglee-deploy-path (see tools/deploy.sh and docs/deploy.md).
+deployment:
+  tasks:
+    - /bin/bash tools/deploy.sh

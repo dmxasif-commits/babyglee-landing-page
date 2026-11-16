@@ -168,7 +168,30 @@ function order_stock_sync(PDO $pdo, string $id, string $status): void {
     $pdo->prepare('UPDATE orders SET stock_held = ? WHERE id = ?')->execute([$want, $id]);
 }
 
-function client_ip(): string { return substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45); }
+/* Cloudflare's proxy ranges (https://www.cloudflare.com/ips/). Check that page now and then: Cloudflare adds ranges rarely. */
+const BG_CF_RANGES = ['173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22',
+    '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+    '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32'];
+function ip_in_range(string $ip, string $cidr): bool {
+    [$net, $bits] = array_pad(explode('/', $cidr, 2), 2, '');
+    $a = @inet_pton($ip); $b = @inet_pton($net);
+    if ($a === false || $b === false || strlen($a) !== strlen($b)) return false;
+    $bits = (int) $bits; $bytes = intdiv($bits, 8); $rem = $bits % 8;
+    if ($bytes > 0 && substr($a, 0, $bytes) !== substr($b, 0, $bytes)) return false;
+    if ($rem === 0) return true;
+    $mask = (0xFF << (8 - $rem)) & 0xFF;
+    return (ord($a[$bytes]) & $mask) === (ord($b[$bytes]) & $mask);
+}
+/* The visitor's own IP address. Behind Cloudflare, REMOTE_ADDR is a Cloudflare address shared by many visitors (order limits and the IP sent to Meta would be wrong),
+   so the CF-Connecting-IP header is used, but only when the request really comes from a Cloudflare address (anyone can send that header to the server directly). */
+function client_ip(): string {
+    $remote = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    $cf = trim((string) ($_SERVER['HTTP_CF_CONNECTING_IP'] ?? ''));
+    if ($cf !== '' && filter_var($cf, FILTER_VALIDATE_IP)) {
+        foreach (BG_CF_RANGES as $range) if (ip_in_range($remote, $range)) return substr($cf, 0, 45);
+    }
+    return substr($remote, 0, 45);
+}
 
 /* Normalises a Bangladeshi mobile number to 8801XXXXXXXXX (digits only) or returns '' when invalid. */
 function bd_phone(string $raw): string {
