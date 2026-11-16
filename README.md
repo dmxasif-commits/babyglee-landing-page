@@ -29,6 +29,11 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-17: Test of the automatic update (GitHub webhook)
+- New harmless file `assets/version.txt`. After this is merged, it should appear at `/assets/version.txt` on the live site within seconds without any click in cPanel; that proves the webhook, `api/deploy.php`, `tools/auto-update.sh` and `tools/deploy.sh` work together on the real hosting. Nothing else changed.
+- Backup before this change: `backups/site-2026-11-17-before-update-test.zip`.
+- Files: `assets/version.txt`.
+
 ### 2026-11-16: Webhook is the recommended way to update (no per-minute cron)
 - `docs/deploy.md` section 4 reordered: **A** the GitHub webhook (the server updates only when `main` changes, i.e. when you say "merge"; includes how to check Recent Deliveries and what 403 / 501 mean), **B** two clicks in cPanel Git Version Control, with an optional cron every 30–60 minutes as a safety net instead of every minute, and how to hold updates with `~/.babyglee-paused`. No code changed (`api/deploy.php` and `tools/auto-update.sh` were added earlier).
 - Backup before this change: `backups/site-2026-11-16-before-webhook-docs.zip`.
