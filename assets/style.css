@@ -566,3 +566,18 @@ body.has-cartbar .fab-wa{bottom:calc(92px + env(safe-area-inset-bottom))}
   .hero .cta .btn{padding:10px 8px;font-size:.9rem}
   .stage{aspect-ratio:1/.8;max-height:250px;justify-self:center;width:100%}
 }
+
+/* ---------- delivery time line, floating cart above WhatsApp ---------- */
+.trust-dlv{background:var(--teal-xl);border-top:1px solid var(--teal-l)}
+.trust-dlv .wrap{display:flex;align-items:center;justify-content:center;gap:10px;padding-top:11px;padding-bottom:11px;text-align:center}
+.trust-dlv .ic{font-size:1.4rem;color:var(--teal-dd);flex:none}
+.trust-dlv p{margin:0;font-weight:700;color:var(--ink,#1d2b2b);line-height:1.3}
+.trust-dlv b{color:var(--teal-dd)}
+body.has-cartbar .fab-cart{bottom:calc(160px + env(safe-area-inset-bottom))}
+@media(max-width:720px),(max-height:500px){body.cta-vis .fab-cart{opacity:0;pointer-events:none;transform:translateY(10px)}}
+@media(max-width:380px){.trust-dlv p{font-size:.9rem}}
+@media(max-height:640px){
+  .fab{width:46px;height:46px;font-size:1.35rem}
+  body.has-cartbar .fab-wa{bottom:calc(84px + env(safe-area-inset-bottom))}
+  body.has-cartbar .fab-cart{bottom:calc(138px + env(safe-area-inset-bottom))}
+}

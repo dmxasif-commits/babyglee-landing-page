@@ -45,7 +45,7 @@ function migrate(PDO $pdo, bool $sqlite): void {
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
     $ver = 0;
     try { $ver = (int) $pdo->query("SELECT v FROM settings WHERE k = 'schema_version'")->fetchColumn(); } catch (Throwable $e) { /* first run */ }
-    if ($ver >= 7) return;
+    if ($ver >= 8) return;
     if ($ver < 1) {
     $ai = $sqlite ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT AUTO_INCREMENT PRIMARY KEY';
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
@@ -67,7 +67,7 @@ function migrate(PDO $pdo, bool $sqlite): void {
             ['navy-brown', 'Navy & Brown', '#26335a', 'navy-brown'], ['black', 'Black', '#262626', 'black']];
         $st = $pdo->prepare('INSERT INTO products (slug, sku, name, color, color_hex, img, price, list_price, price_usd, sizes, page, active, sort, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?,?)');
         foreach ($seed as $i => $s) {
-            $st->execute(['bounce-' . $s[0], 'BSTD-01-' . strtoupper($s[0]), 'Babyglee Bounce — ' . $s[1], $s[1], $s[2], 'img/' . $s[3] . '.webp', 1290, 1800, 15, implode(',', BG_SIZES), '#shop', $i, now()]);
+            $st->execute(['bounce-' . $s[0], 'BSTD-01-' . strtoupper($s[0]), 'Babyglee Bounce — ' . $s[1], $s[1], $s[2], 'img/' . $s[3] . '.webp', 1290, 1800, 30, implode(',', BG_SIZES), '#shop', $i, now()]);
         }
     }
     }
@@ -114,6 +114,9 @@ function migrate(PDO $pdo, bool $sqlite): void {
         try { $pdo->exec($q); } catch (Throwable $e) { /* column already exists */ }
     }
     set_setting('schema_version', '7');
+    /* version 8: the international price is US$30 (was US$15): only products still at the old default 15 are changed, a price you set yourself is kept */
+    try { $pdo->exec("UPDATE products SET price_usd = 30 WHERE price_usd = 15"); } catch (Throwable $e) { /* products table cannot be missing here */ }
+    set_setting('schema_version', '8');
 }
 
 function now(): string { return date('Y-m-d H:i:s'); }
