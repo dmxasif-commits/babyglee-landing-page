@@ -90,3 +90,24 @@ If the save fails (network, server error) the site retries a few times with a gr
 - **Demo orders** (no backend, e.g. GitHub Pages) send no Purchase, so they cannot pollute your data. To test the dataLayer in demo mode set `localStorage.bg_track_demo = '1'` in the browser console.
 - **Server copy (Admin → Settings → Server GTM backup):** paste your server container's GA4 Measurement Protocol URL. The backend then sends a `purchase` from the saved order with the same `event_id` (`purchase_<orderId>`) and `transaction_id`, plus hashed customer data, `fbp`, `fbc`, `external_id`, IP (`ip_override`) and user agent. Modes: *Only orders confirmed from Incomplete* (default: these customers never see the thank-you page, so the browser sends nothing), *Every order* (backup for lost browser events; the two copies carry the same IDs and are counted once) or *Never*. The Meta Conversions API box in Settings does the same job directly; use it **or** your server container, not both.
 - Your server container needs a GA4 client that accepts these requests and a Purchase tag/trigger on it. This path is built to the Measurement Protocol format but has not been tested against a real container: check it once in server GTM Preview and in Events Manager.
+
+### What the server request contains for Meta
+
+Google and Meta hash the phone number differently, so the request carries **both**, separately:
+
+| For | Field | Phone example |
+|---|---|---|
+| Google (enhanced conversions) | `user_data.sha256_phone_number` | hash of `+8801712345678` |
+| Meta | event parameter `meta_ph` | hash of `8801712345678` (digits with country code, no `+`) |
+
+The other Meta fields are `meta_em` (lower-case email), `meta_fn`, `meta_ln` (lower-case, no punctuation), `meta_ct` (district), `meta_country` (`bd`) and `meta_external_id` (SHA-256 of the visitor ID), plus the unhashed `fbp`, `fbc` and `external_id`. In your server container, map `meta_*` to the Meta tag's user data (do not hash them again) and leave the Google fields for the Google tags. Check in server GTM Preview that the event data shows these keys.
+`ip_override` is sent at the top level of the request (as the Measurement Protocol documents) and also as an event parameter; use whichever your container reads and confirm it in Preview. The customer's user agent is sent as the `user_agent` parameter and as the request's `User-Agent` header. The IP address and user agent are the customer's own (saved with the order), never hashed.
+The user agent of an incomplete order is saved when the order is captured and carried into the order created from Admin → Incomplete, so recovered Purchases have it too.
+
+### Retries (no conversion is lost to a short outage)
+
+- The customer gets the order answer first; the server then delivers the Purchase, so a slow Meta or server container never delays the thank-you page.
+- Each destination (Meta, server GTM) has its own status. A failed one is tried again after 1, 5, 15, 60 and 240 minutes (six tries in all); one that already succeeded is never sent again. The state is stored in the order, so a restart loses nothing.
+- Retries run when an admin page is opened, when another order arrives, and, if you add the optional cron job, every few minutes. In cPanel → Cron Jobs run `curl -s "https://yourdomain.com/api/retry.php?key=YOUR_CRON_KEY" > /dev/null` every 5 minutes and put the same `cron_key` in `api/config.php`.
+- The order page shows the delivery status; if it is *pending* or *failed* there is a "Try again now" button, and the dashboard warns about failed deliveries.
+- Default mode sends only orders confirmed from Incomplete. Ordinary web orders get the server copy only if you choose *Every order*: do so if you want protection against a lost thank-you page. Both copies carry the same `event_id` and `transaction_id`, so GA4 and Meta count one purchase; confirm this once in Events Manager.

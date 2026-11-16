@@ -55,6 +55,7 @@ Use **HTTPS** (cPanel → SSL/TLS Status → AutoSSL). The admin login cookie is
 - **Ad spend:** Ads → Campaign → *Ad spend*. Type what you spent per campaign (same name as the campaign in the table); you get cost per order, ROAS and net after ads.
 - **Admin login:** the first admin account is created on the first visit to `/admin/` (type the setup key, a username and a password of 10+ characters). The username can be an email address (letters, numbers and `. _ - + @`, up to 40 characters; capital letters are ignored when logging in). Do not put the address or password in the repository or in `api/config.php`.
 - **Server GTM Purchase:** Settings → *Server GTM backup for Purchase*. Paste the Measurement Protocol URL of your server container. The server then sends the Purchase of orders you confirm from Incomplete (or of every order, if you choose that) with the same ID as the browser event. See `docs/meta-tracking.md`.
+- **Failed Purchase deliveries:** they are retried automatically (see `docs/meta-tracking.md`). Optional cron job: add `'cron_key'` to `api/config.php` (a long random text) and in cPanel → Cron Jobs run `curl -s "https://yourdomain.com/api/retry.php?key=YOUR_CRON_KEY" > /dev/null` every 5 minutes. Without cron, retries still run whenever an admin page is opened or an order arrives.
 - **Backup:** Settings → *Download backup (JSON)*. Do it regularly (it contains customer details, keep it private).
   Also use cPanel → *Backup* for a full database backup.
 

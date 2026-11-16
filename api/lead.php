@@ -33,9 +33,11 @@ $source = ($in['source'] ?? '') === 'landing' ? 'landing' : 'store';
 $row = [$source, $str('name', 120), '+' . $phone, $str('email', 160), $str('district', 60), $str('address', 600), $area,
     json_encode($items, JSON_UNESCAPED_UNICODE), json_encode($tracking, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), now()];
 
+/* The customer's browser (user agent) is kept so a Purchase created later from this incomplete order still carries it for matching. */
+$ua = mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 400);
 $ex = $pdo->prepare('SELECT id FROM leads WHERE token = ?'); $ex->execute([$token]);
 if ($id = $ex->fetchColumn()) {
-    $pdo->prepare('UPDATE leads SET source=?, name=?, phone=?, email=?, district=?, address=?, area=?, items=?, tracking=?, updated_at=? WHERE id=?')->execute(array_merge($row, [$id]));
+    $pdo->prepare('UPDATE leads SET source=?, name=?, phone=?, email=?, district=?, address=?, area=?, items=?, tracking=?, updated_at=?, user_agent=? WHERE id=?')->execute(array_merge($row, [$ua, $id]));
     json_out(['ok' => true]);
 }
 /* A number that ordered in the last 30 minutes is not an incomplete order. */
@@ -46,6 +48,6 @@ $rl = $pdo->prepare('SELECT COUNT(*) FROM leads WHERE ip = ? AND created_at > ?'
 if ((int) $rl->fetchColumn() >= 60) json_out(['ok' => false], 429);
 /* One open lead per phone number: a new visit from the same number replaces the old open one. */
 $pdo->prepare("DELETE FROM leads WHERE phone = ? AND status = 'new'")->execute(['+' . $phone]);
-$pdo->prepare("INSERT INTO leads (source, name, phone, email, district, address, area, items, tracking, updated_at, token, created_at, status, ip, note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'new',?,'')")
-    ->execute(array_merge($row, [$token, now(), client_ip()]));
+$pdo->prepare("INSERT INTO leads (source, name, phone, email, district, address, area, items, tracking, updated_at, token, created_at, status, ip, user_agent, note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'new',?,?,'')")
+    ->execute(array_merge($row, [$token, now(), client_ip(), $ua]));
 json_out(['ok' => true]);

@@ -82,9 +82,9 @@ $pdo->prepare('INSERT INTO order_log (order_id, created_at, status, note) VALUES
 $pdo->prepare('DELETE FROM leads WHERE phone = ?')->execute(['+' . $phone]);   // the order is complete: no longer an incomplete order
 $pdo->commit();
 
-/* Server-side Meta Conversions API Purchase (only when a Pixel ID and token are saved in Admin > Settings). Never blocks the order. */
-try { dispatch_purchase($pdo, $id, 'web'); } catch (Throwable $e) { error_log('Babyglee purchase dispatch: ' . $e->getMessage()); }
-
-/* The accepted order goes back to the browser: the Purchase event is built from these values (what the customer is really charged). */
-json_out(['ok' => true, 'id' => $id, 'subtotal' => $subtotal, 'delivery' => $delivery, 'total' => $total,
-    'items' => array_map(fn($i) => ['slug' => $i['slug'], 'sku' => $i['sku'], 'product' => $i['product'], 'size' => $i['size'], 'qty' => $i['qty'], 'price' => $i['price']], $items)]);
+/* The accepted order goes back to the browser first: the Purchase event is built from these values (what the customer is really charged).
+   Only after the answer is sent does the server deliver the Purchase (Meta / server GTM, whatever is set up in Admin > Settings) and run any retries that are due,
+   so a slow Meta or server container never delays the customer. */
+json_out_then(['ok' => true, 'id' => $id, 'subtotal' => $subtotal, 'delivery' => $delivery, 'total' => $total,
+    'items' => array_map(fn($i) => ['slug' => $i['slug'], 'sku' => $i['sku'], 'product' => $i['product'], 'size' => $i['size'], 'qty' => $i['qty'], 'price' => $i['price']], $items)],
+    function () use ($pdo, $id) { dispatch_purchase($pdo, $id, 'web'); retry_dispatches($pdo, 2); });

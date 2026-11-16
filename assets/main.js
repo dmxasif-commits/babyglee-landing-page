@@ -192,7 +192,8 @@ function watchLead(form, source, getItems) {
     if (!phoneOk(el(form, 'phone').value) || form.dataset.done) return;
     const body = bodyNow(); if (body === saved || body === inflight) return;
     if (!BG.LEAD_ENDPOINT) { saved = body; pushLead(); return; }
-    if (final && navigator.sendBeacon) { try { if (navigator.sendBeacon(BG.LEAD_ENDPOINT, new Blob([body], { type: 'text/plain' }))) saved = body; } catch (e) {} return; }
+    /* leaving the page: a beacon is the most reliable way out; if the browser refuses it (returns false, e.g. over its size limit), fall back to a keepalive request */
+    if (final && navigator.sendBeacon) { try { if (navigator.sendBeacon(BG.LEAD_ENDPOINT, new Blob([body], { type: 'text/plain' }))) { saved = body; return; } } catch (e) {} }
     inflight = body;
     try {
       const r = await fetch(BG.LEAD_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: true });
@@ -461,9 +462,10 @@ if (page === 'checkout') {
     if (bad) { bad.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     sending = true; $('#submitBtn').disabled = true; $('#sendErr').hidden = true;
     const cust = custOf(form), order = buildOrder(form, 'landing', toOrderItems(lines()), area());
-    /* Tracking must never hold up an order: each tracking step gets a short time limit, then the order goes on. */
-    order.tracking = await within(trackingBlock(cust, order), 2000) || Object.assign({ event_id: 'purchase_' + order.id, user_agent: navigator.userAgent, page_url: location.href, referrer: document.referrer, attribution: T.attribution() }, T.ids());
-    await within(stageEvent('add_payment_info', cust, lines(), area()), 2000);
+    /* Tracking must never hold up an order: both tracking steps run together and share one short time limit (1.2 s), then the order goes on. */
+    const tbP = trackingBlock(cust, order), apP = stageEvent('add_payment_info', cust, lines(), area());
+    await within(Promise.all([tbP, apP]), 1200);
+    order.tracking = await within(tbP, 0) || Object.assign({ event_id: 'purchase_' + order.id, user_agent: navigator.userAgent, page_url: location.href, referrer: document.referrer, attribution: T.attribution() }, T.ids());
     const res = await sendOrder(order);
     if (!res.ok) { sending = false; sendFailed(res); return; }
     form.dataset.done = '1'; try { sessionStorage.removeItem('bg_lead'); } catch (e) {}
