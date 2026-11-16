@@ -24,7 +24,7 @@ GitHub (main)  --git pull every 5 min-->  ~/repositories/babyglee-landing-page  
 1. cPanel → **Git™ Version Control** → *Create*. Turn *Clone a Repository* on.
    - Clone URL: `https://github.com/dmxasif-commits/babyglee-landing-page.git` (the repository is public, so no key is needed)
    - Repository Path: `repositories/babyglee-landing-page` (outside `public_html`)
-2. Tell the deploy script where the site's web folder is. cPanel → *Domains* → note the **Document Root** of the subdomain (for example `/home/cpaneluser/shop.example.com`). In *File Manager* → Home directory (settings: show hidden files) → *New File* named `.babyglee-deploy-path` containing that one line.
+2. Tell the deploy script where the site's web folder is. cPanel → *Domains* → note the **Document Root** of the domain (for example `/home/cpaneluser/shop.example.com`; if the site is the main domain of the account it is usually `/home/cpaneluser/public_html`). Check that this folder really exists in File Manager, and click **Save Changes** in the editor (the file must not show 0 bytes). In *File Manager* → Home directory (settings: show hidden files) → *New File* named `.babyglee-deploy-path` containing that one line.
 3. First deploy: Git Version Control → *Manage* → *Pull or Deploy* → **Deploy HEAD Commit** (it runs `.cpanel.yml`, which runs `tools/deploy.sh`). Or in cPanel *Terminal*:
    ```bash
    cd ~/repositories/babyglee-landing-page && bash tools/deploy.sh
@@ -57,6 +57,8 @@ From now on: merge on GitHub → live within 5 minutes. To update at once: Git V
 
 ## Things to know
 
+- cPanel keeps the domain's PHP version (for example "PHP 8.2 / ea-php82") in the web folder's `.htaccess`. The deploy keeps that block when it replaces `.htaccess`, so a deploy never changes the PHP version. If you change the PHP version in MultiPHP Manager later, cPanel rewrites the block itself.
+- The first deploy keeps a copy of the `.htaccess` that was there before (for example with cPanel's *Force HTTPS Redirect* rule) as `.htaccess.before-deploy`, and never overwrites that copy later. With Cloudflare's **Always Use HTTPS** on, the redirect to https already happens at Cloudflare. Important: if cPanel's Force HTTPS Redirect is on, Cloudflare's SSL/TLS mode must be **Full** or **Full (strict)**; with *Flexible* the browser loops with "too many redirects".
 - **Do not edit files on the server.** The next deploy overwrites `index.html`, `assets/`, `img/`, `admin/` and `api/` (except `config.php`). Change the repository instead.
 - Product photos and review screenshots (`uploads/`) exist only on the server. Include them in your cPanel backups; the admin JSON backup does not contain image files.
 - Settings, products, orders and reviews live in the database, so a deploy never changes them. The database upgrades itself when a new version needs new columns.
