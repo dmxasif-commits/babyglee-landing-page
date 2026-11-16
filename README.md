@@ -36,7 +36,7 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 - `tools/rollback.sh`: restores the previous (or a named) backup, backs up the current files first, pauses automatic updates (`~/.babyglee-paused`).
 - `docs/deploy.md` section 4 rewritten: chat → PR → "merge" → live; cron, webhook, backups and rollback.
 - Tests: 29 checks in a sandbox with a fake GitHub (deploy, no-op run, backup contents and permissions, retention, rollback, pause and resume, two updates at once, failed deploy retried, signed webhook accepted, wrong, missing and mismatched signatures refused, other branch ignored, ping, GET, no secret) + 36 deploy + 11 IP checks. Not tested: a real cPanel account, GitHub webhook delivery, Cloudflare.
-- Backup before this change: `backups/site-2026-11-16-before-auto-deploy.zip`.
+- Backup before this change: `backups/site-2026-11-16-before-auto-deploy.zip`. This and all later backups are made without the `backups/` folder (`git archive --format=zip -o backups/<name>.zip origin/main -- . ':(exclude)backups'`): before, each backup contained every earlier one and doubled in size, and the last one (142 MB) hit GitHub's 100 MB file limit. The older zips in the repository add up to about 140 MB and make the first clone slow; they can be moved out of the repository when you decide.
 - Files: `tools/auto-update.sh` (new), `tools/rollback.sh` (new), `tools/deploy.sh`, `api/deploy.php` (new), `api/config.sample.php`, `docs/deploy.md`.
 
 ### 2026-11-16: Deploy keeps the cPanel PHP version block
