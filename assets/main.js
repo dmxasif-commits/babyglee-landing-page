@@ -441,12 +441,13 @@ if (page === 'landing') {
 
   /* reviews: real customer reviews added in the admin panel (text or screenshot); the section stays hidden when there are none */
   if (RV.length) {
-    const avg = RV.reduce((a, r) => a + (+r.rating || 5), 0) / RV.length;
+    /* a review without a star rating (rating 0, for example a quote copied from the Facebook page) shows no stars and is left out of the average: nothing is made up */
+    const rated = RV.filter(r => +r.rating > 0), avg = rated.length ? rated.reduce((a, r) => a + +r.rating, 0) / rated.length : 0, starsOf = r => +r.rating > 0 ? `<span class="stars">${stars(+r.rating)}</span>` : '';
     $('#reviews').hidden = false; const nv = $('#navReviews'); if (nv) nv.hidden = false;
-    $('#rvSum').innerHTML = `<span class="stars">${stars(Math.round(avg))}</span> <b>${avg.toFixed(1)}</b> out of 5 from ${RV.length} review${RV.length > 1 ? 's' : ''}`;
+    $('#rvSum').innerHTML = rated.length ? `<span class="stars">${stars(Math.round(avg))}</span> <b>${avg.toFixed(1)}</b> out of 5 from ${rated.length} review${rated.length > 1 ? 's' : ''}` : `${RV.length} review${RV.length > 1 ? 's' : ''} from our customers`;
     $('#rvTrack').innerHTML = RV.map(r => r.img
-      ? `<figure class="rvc shot"><button type="button" data-shot="${esc(r.img)}" aria-label="Open review screenshot"><img src="${esc(r.img)}" alt="Review by ${esc(r.name)}" loading="lazy"></button><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}<span class="stars">${stars(+r.rating || 5)}</span>${r.text ? `<p>${esc(r.text)}</p>` : ''}</figcaption></figure>`
-      : `<figure class="rvc"><span class="stars">${stars(+r.rating || 5)}</span><p>“${esc(r.text)}”</p><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}</figcaption></figure>`).join('');
+      ? `<figure class="rvc shot"><button type="button" data-shot="${esc(r.img)}" aria-label="Open review screenshot"><img src="${esc(r.img)}" alt="Review by ${esc(r.name)}" loading="lazy"></button><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}${starsOf(r)}${r.text ? `<p>${esc(r.text)}</p>` : ''}</figcaption></figure>`
+      : `<figure class="rvc">${starsOf(r)}<p>“${esc(r.text)}”</p><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}</figcaption></figure>`).join('');
     $('#rvTrack').addEventListener('click', e => { const b = e.target.closest('[data-shot]'); if (!b) return; $('#shotImg').src = b.dataset.shot; lastFocus = b; openSheet($('#shotBox')); });
   }
 }

@@ -45,7 +45,7 @@ function migrate(PDO $pdo, bool $sqlite): void {
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
     $ver = 0;
     try { $ver = (int) $pdo->query("SELECT v FROM settings WHERE k = 'schema_version'")->fetchColumn(); } catch (Throwable $e) { /* first run */ }
-    if ($ver >= 9) return;
+    if ($ver >= 10) return;
     if ($ver < 1) {
     $ai = $sqlite ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT AUTO_INCREMENT PRIMARY KEY';
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
@@ -124,6 +124,26 @@ function migrate(PDO $pdo, bool $sqlite): void {
         try { $pdo->prepare('UPDATE products SET name = ?, color = ? WHERE slug = ?')->execute(['Sneaker – ' . $color, $color, $slug]); } catch (Throwable $e) { /* keep going */ }
     }
     set_setting('schema_version', '9');
+    /* version 10: the owner's real customer reviews from the main website (babygleebd.com/welcome/Bangladesh, the Facebook page reviews), as given by the owner.
+       Only when no review exists yet, so reviews added in Admin are never duplicated. Name and text exactly as published (a cut-off sentence is shortened to its last full sentence, nothing is added),
+       no photos and no star rating (rating 0 shows no stars and is not counted in the average). Edit or remove them in Admin > Reviews. */
+    try {
+        if (!(int) $pdo->query('SELECT COUNT(*) FROM reviews')->fetchColumn()) {
+            $rv = [['Arnia Antor', 'Third time purchase from Babyglee. Alhamdulillah products are same as the picture.'],
+                ['Tyeba Ahasan', '1st time purchased from here and the shoe is so nice and comfortable, my son loves it sooo much.'],
+                ['Hafsa Akther', 'There product are awesome'],
+                ['Shirajum Munira Reme', '1st purchased from Babyglee..my baby loves them so much.'],
+                ['Sumya Rani', 'very happy after getting the product. products are the same as shown in the picture.'],
+                ['Sumaiya Farhin Mou', "I'm a regular customer of Babyglee. Must say their product quality is good."],
+                ['Sabab Sohani Kazi', 'I have bought 5 pairs of shoes from babyglee.'],
+                ['Sumona Ahmed Mim', 'So much adorable and soft designed shoes I have ever seen.'],
+                ['Naz Mahmud', 'It’s really nice experience with Babyglee. Very nice products with quality service . Thank you...'],
+                ['Sharmin Simi', 'Happy with Babyglee super first service nd there products are also good..thank you Babyglee..']];
+            $ins = $pdo->prepare("INSERT INTO reviews (name, city, rating, body, img, active, sort, created_at) VALUES (?, '', 0, ?, '', 1, ?, ?)");
+            foreach ($rv as $i => $r) $ins->execute([$r[0], $r[1], 100 - $i, now()]);
+        }
+    } catch (Throwable $e) { /* reviews table missing: nothing to seed */ }
+    set_setting('schema_version', '10');
 }
 
 function now(): string { return date('Y-m-d H:i:s'); }
