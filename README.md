@@ -29,6 +29,15 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-17: Tracking tidy-up (dataLayer only, no key renames)
+- Backup of the live site before the changes: `backups/site-2026-11-17-before-datalayer-update.zip`.
+- **`external_id`:** the visitor UUID lives in the first-party cookie `bg_uid`, renewed on every visit (asked for 730 days; Chrome caps script-set cookies at 400 days, Safari is shorter). A copy in localStorage restores the cookie when it expires or is cleared, so the value stays the same on every page and visit.
+- **Purchase once per order:** the order id is stored in sessionStorage and localStorage (`bg_purchased`, last 50 orders) and is checked again in the same moment the event is pushed, so a reload, back/forward or a later visit to the thank-you page sends nothing. The event_id stays `purchase_<orderId>`.
+- Checked, no change needed: `meta_user_data` on `purchase` already holds SHA-256 hashes of the phone (digits with country code, `8801700000000`), first name, last name, city, country and external_id (first name and city are lowercased and stripped of punctuation and spaces, as Meta specifies). Every other event's `event_id` is unique per event (tested over a browsing session).
+- Not possible as asked: `begin_checkout` fires when the checkout page opens, before the visitor has typed anything, so it has no name, phone or city to hash. The first events that carry `meta_user_data` are `add_shipping_info`, `add_payment_info`, `generate_lead` and `purchase`.
+- Open decision: whether `ecommerce.value` should include delivery (now it does not; `order_total` and `ecommerce.shipping` are sent next to it).
+- Files: `assets/tracking.js`, `assets/main.js`, `docs/gtm-tracking.md`, `docs/meta-tracking.md`, `README.md`.
+
 ### 2026-11-17: Copy update from the team's "Landing page" review document
 - Backup of the live site before the changes: `backups/site-2026-11-17-before-copy-update.zip`.
 - **Announcement bar:** "Available in Bangladesh · Designed for European markets · Cash on Delivery · 72-Hour Easy Exchanges" plus a tap-to-call number; on phones it shows "Available in Bangladesh" and the number. Nav: Why Babyglee®, Size Guide, Shop Now.
