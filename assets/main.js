@@ -325,7 +325,7 @@ const cardHTML = (s, p) => {
     ${ims.length > 1 ? `<div class="thumbs">${ims.map((u, i) => `<button type="button" class="th${i ? '' : ' on'}" data-img="${esc(u)}" aria-label="Photo ${i + 1}"><img src="${esc(u)}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}</div>
   <div class="pc-body"><h3>${esc(p.title.replace(/^Babyglee\s+/, ''))}</h3>
     <div class="pc-price">${l > pr ? `<s>${fmt(l)}</s> ` : ''}<b>${fmt(pr)}</b>${l > pr ? `<span class="off">Save ${Math.round((l - pr) / l * 100)}%</span>` : ''}</div>
-    ${usd ? `<p class="usd-line">US$${usd} <span>international price</span></p>` : ''}
+    ${usd ? `<p class="usd-line">€${usd} <span>international price</span></p>` : ''}
     <fieldset class="pc-sizes"><button type="button" class="btn block ghost find-size" data-open-size>${RULER} Find the right size<small>Enter your child's foot length in cm</small></button><legend>Choose size (EU)</legend><div class="szs">${chips}</div><small class="err"></small></fieldset>
     <div class="pc-buy"><div class="qty"><button type="button" data-q="-1" aria-label="Decrease quantity">−</button><output>1</output><button type="button" data-q="1" aria-label="Increase quantity">+</button></div>
       ${sold ? '<button class="btn" type="button" disabled>Sold out</button>' : `<button class="btn" type="button" data-add>${BAG} Add to cart</button>`}</div>
@@ -407,7 +407,7 @@ function showAdded(slug, size, added) {
 if (page === 'landing') {
   /* hero price follows the admin catalogue */
   const slugsAll = Object.keys(PR);
-  if (slugsAll.length) { const pt = $('.hero .price-tag'); if (pt) { const lo = Math.min(...slugsAll.map(priceOf)), hi = Math.max(...slugsAll.map(listOf)); $('b', pt).textContent = fmt(lo); const s = $('s', pt); s.textContent = fmt(hi); s.hidden = !(hi > lo); } const un = $('.hero .usd-note b'); if (un) un.textContent = 'US$' + Math.max(...slugsAll.map(usdOf)); }
+  if (slugsAll.length) { const pt = $('.hero .price-tag'); if (pt) { const lo = Math.min(...slugsAll.map(priceOf)), hi = Math.max(...slugsAll.map(listOf)); $('b', pt).textContent = fmt(lo); const s = $('s', pt); s.textContent = fmt(hi); s.hidden = !(hi > lo); } const un = $('.hero .usd-note b'); if (un) un.textContent = '€' + Math.max(...slugsAll.map(usdOf)); }
   const grid = $('#grid'), slugs = slugsAll, listId = 'landing', listName = 'Landing - Bounce series';
   grid.innerHTML = slugs.length ? slugs.map(s => cardHTML(s, PR[s])).join('') : '<p class="empty-note">No products are available right now. Please check back soon.</p>';
   $$('.pc', grid).forEach(c => { const b = $('[data-open-size]', c); b.sizeTarget = eu => { const r = $(`input[value="${eu}"]`, c); if (r && !r.disabled) { r.checked = true; $('.err', c).textContent = ''; } }; });

@@ -45,7 +45,7 @@ function migrate(PDO $pdo, bool $sqlite): void {
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
     $ver = 0;
     try { $ver = (int) $pdo->query("SELECT v FROM settings WHERE k = 'schema_version'")->fetchColumn(); } catch (Throwable $e) { /* first run */ }
-    if ($ver >= 8) return;
+    if ($ver >= 9) return;
     if ($ver < 1) {
     $ai = $sqlite ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT AUTO_INCREMENT PRIMARY KEY';
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
@@ -63,11 +63,11 @@ function migrate(PDO $pdo, bool $sqlite): void {
         try { $pdo->exec($q); } catch (Throwable $e) { /* index already exists */ }
     }
     if (!(int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn()) {
-        $seed = [['sky-blue', 'Sky Blue & Yellow', '#3fb4e8', 'sky-blue-yellow'], ['blue-beige', 'Blue & Beige', '#3d7fa5', 'blue-beige'], ['grey', 'Grey', '#8a9096', 'grey'],
-            ['navy-brown', 'Navy & Brown', '#26335a', 'navy-brown'], ['black', 'Black', '#262626', 'black']];
+        $seed = [['sky-blue', 'Multi Color', '#3fb4e8', 'sky-blue-yellow'], ['blue-beige', 'Blue & Beige', '#3d7fa5', 'blue-beige'], ['grey', 'Charcoal Grey', '#8a9096', 'grey'],
+            ['navy-brown', 'Dark Navy', '#26335a', 'navy-brown'], ['black', 'Black', '#262626', 'black']];
         $st = $pdo->prepare('INSERT INTO products (slug, sku, name, color, color_hex, img, price, list_price, price_usd, sizes, page, active, sort, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?,?)');
         foreach ($seed as $i => $s) {
-            $st->execute(['bounce-' . $s[0], 'BSTD-01-' . strtoupper($s[0]), 'Babyglee Bounce — ' . $s[1], $s[1], $s[2], 'img/' . $s[3] . '.webp', 1290, 1800, 30, implode(',', BG_SIZES), '#shop', $i, now()]);
+            $st->execute(['bounce-' . $s[0], 'BSTD-01-' . strtoupper($s[0]), 'Sneaker – ' . $s[1], $s[1], $s[2], 'img/' . $s[3] . '.webp', 1290, 1800, 35, implode(',', BG_SIZES), '#shop', $i, now()]);
         }
     }
     }
@@ -117,6 +117,13 @@ function migrate(PDO $pdo, bool $sqlite): void {
     /* version 8: the international price is US$30 (was US$15): only products still at the old default 15 are changed, a price you set yourself is kept */
     try { $pdo->exec("UPDATE products SET price_usd = 30 WHERE price_usd = 15"); } catch (Throwable $e) { /* products table cannot be missing here */ }
     set_setting('schema_version', '8');
+    /* version 9: the international price is EUR 35 (the field price_usd keeps its name): only products still at an old default (15 or 30) are changed, a price you set yourself is kept.
+       The five products get the new names and colours (matched by slug; slug, SKU and photo stay). */
+    try { $pdo->exec("UPDATE products SET price_usd = 35 WHERE price_usd IN (15, 30)"); } catch (Throwable $e) { /* products table cannot be missing here */ }
+    foreach (['bounce-sky-blue' => 'Multi Color', 'bounce-blue-beige' => 'Blue & Beige', 'bounce-grey' => 'Charcoal Grey', 'bounce-navy-brown' => 'Dark Navy', 'bounce-black' => 'Black'] as $slug => $color) {
+        try { $pdo->prepare('UPDATE products SET name = ?, color = ? WHERE slug = ?')->execute(['Sneaker – ' . $color, $color, $slug]); } catch (Throwable $e) { /* keep going */ }
+    }
+    set_setting('schema_version', '9');
 }
 
 function now(): string { return date('Y-m-d H:i:s'); }
