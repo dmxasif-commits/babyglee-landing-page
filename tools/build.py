@@ -5,7 +5,7 @@ import json, pathlib, re
 OUT = pathlib.Path(__file__).resolve().parent.parent
 BASE = "https://dmxasif-commits.github.io/babyglee-landing-page/"  # change if you move to a custom domain
 PRICE, LIST = 1290, 1800
-PRICE_USD = 30  # international price in US dollars, no discount
+PRICE_INTL = 35  # international price in euro, no discount (the field and JSON key keep the old name "priceUsd")
 WA = "8801974974973"
 PHONE_DISPLAY = "+880 1974-974973"
 PHONE_TEL = "+8801974974973"
@@ -151,7 +151,7 @@ FAQ = [
  ("Where do you deliver from, and how long does it take?", f"Our head office is in Dhaka, Bangladesh, and we deliver to homes across Bangladesh, inside and outside Dhaka. Delivery takes {DELIVERY} everywhere."),
  ("What are the shipping costs?", "The delivery charge for inside Dhaka and outside Dhaka is shown at checkout before you confirm your order. Full details are on our Shipping &amp; Returns page."),
  ("Can I track my order?", "Yes. Once your order is dispatched, the courier gives you a tracking number, and you can use it on the courier's website for live updates on your delivery."),
- ("Can I pay on delivery? Which payment methods do you accept?", f"Cash on Delivery is available on every order: you pay in taka when your parcel arrives. You can also pay by bKash (merchant account {BKASH}, Payment option). For card payment, please message us on WhatsApp."),
+ ("Can I pay on delivery? Which payment methods do you accept?", f"Cash on Delivery is available on every order: you pay in taka when your parcel arrives. You can also pay by bKash (merchant account {BKASH}, Payment option). Tell our team when we call to confirm your order."),
  ("What is your return and exchange policy?", "You can exchange within 72 hours of receiving your shoes, for items in original condition. Delivery and return charges apply. See our Shipping &amp; Returns page for details."),
  ("How can I contact Babyglee customer service?", f"Reach us on WhatsApp {PHONE_DISPLAY} (11 AM – 9 PM BST), on Facebook Messenger (Babyglee.Official) or by email at info@babygleebd.com. Our head office in Dhaka, Bangladesh, manages all customer enquiries."),
 ]
@@ -192,7 +192,7 @@ def page_shipping():
 <li><b>Clear costs:</b> the delivery charge for inside Dhaka and outside Dhaka is shown at checkout before you confirm your order.</li>
 <li><b>Easy tracking:</b> once your order is dispatched, the courier gives you a tracking number for live updates.</li>
 <li>Please keep your phone available so the courier can reach you.</li></ul>
-<h2>Payment</h2><p>Cash on Delivery is available on every order: you pay the courier when you receive your parcel. Please check the parcel before paying. You can also pay by bKash (merchant account {BKASH}, Payment option). For card payment, please message us on WhatsApp.</p>
+<h2>Payment</h2><p>Cash on Delivery is available on every order: you pay the courier when you receive your parcel. Please check the parcel before paying. You can also pay by bKash (merchant account {BKASH}, Payment option).</p>
 <h2>Return &amp; Exchange Policy</h2><p>Your satisfaction is key! We make exchanges simple at Babyglee.</p>
 <ul><li><b>Eligibility:</b> exchange items within 72 hours of receipt. Items must be unworn, unwashed, with all tags and in the original packaging.</li>
 <li><b>How to start:</b> message us on WhatsApp or Facebook Messenger, or email info@babygleebd.com with your order number.</li>
@@ -223,9 +223,9 @@ def page_terms():
 <li><b>Intellectual property:</b> all Babyglee content is ours; do not reproduce it without permission. Babyglee® is a registered trademark in Bangladesh (Reg. No. 210926, Class 25). Content you submit grants us a licence to use it.</li></ul>
 <h2>Products &amp; sales</h2>
 <ul><li><b>Information:</b> we strive for accuracy (including colours, which can differ slightly on screens) but do not guarantee error-free content.</li>
-<li><b>Pricing:</b> prices are in Bangladeshi Taka (BDT) and are subject to change; the price shown when you order applies. We can correct errors or cancel orders. USD or EUR prices are shown for reference only; orders are charged in BDT.</li>
+<li><b>Pricing:</b> prices are in Bangladeshi Taka (BDT) and are subject to change; the price shown when you order applies. We can correct errors or cancel orders. The international price in euro is shown for reference only; orders are charged in BDT.</li>
 <li><b>Orders:</b> an order is confirmed after our team contacts you to verify your details and size. Order confirmation does not guarantee acceptance; we can decline orders we cannot verify or fulfil. Please give a correct phone number and address.</li>
-<li><b>Payment:</b> Cash on Delivery, bKash or card (via WhatsApp), as described on our <a href="shipping-returns.html">Shipping &amp; Returns</a> page.</li>
+<li><b>Payment:</b> Cash on Delivery or bKash, as described on our <a href="shipping-returns.html">Shipping &amp; Returns</a> page.</li>
 <li><b>Returns and shipping:</b> see our <a href="shipping-returns.html">Shipping &amp; Returns</a> policy (72 hours from delivery; delivery and return charges apply).</li></ul>
 <h2>Disclaimers &amp; liability</h2><p>Services are provided "as is", without warranties. To the extent permitted by law, Babyglee is not liable for damages from using our services. Nothing limits your rights under applicable consumer law.</p>
 <h2>Indemnification</h2><p>You agree to protect Babyglee from claims arising from your violation of these Terms or misuse of our services.</p>
@@ -249,7 +249,7 @@ def header(active="landing"):
     <div class="ship-menu" id="shipMenu" hidden>
       <p class="sm-h">Shipping destination</p>
       <div class="sm-opt on"><span class="flag-bd" role="img" aria-label="Bangladesh flag"></span><b>Bangladesh</b>{ic("check")}</div>
-      <p class="sm-n">Prices are in Bangladeshi taka (৳ BDT). The international price in USD is shown for reference.</p>
+      <p class="sm-n">Prices are in Bangladeshi taka (৳ BDT). The international price in euro is shown for reference.</p>
       <ul class="sm-l"><li>{ic("truck")} Home delivery</li><li>{ic("cash")} Cash on Delivery</li><li>{ic("exchange")} 72-hour easy exchange</li></ul>
     </div>
   </div>
@@ -354,7 +354,7 @@ def page_index():
       <p class="lead">Many kids wear generic sneakers that harm their developing feet. Babyglee® offers premium sneakers at an accessible price so your child can play comfortably and grow healthy.</p>
       <div class="cta"><a class="btn lg" href="#shop">Choose your pair</a><button class="btn lg ghost" type="button" data-open-size>Find my kid's size</button></div>
       <div class="price-tag"><s>{fmt(LIST)}</s><b>{fmt(PRICE)}</b><span>(Cash on Delivery)</span></div>
-      <p class="usd-note">International price: <b>US${PRICE_USD}</b></p>
+      <p class="usd-note">International price: <b>€{PRICE_INTL}</b></p>
     </div>
     <div class="stage" id="stage">
       <div class="disc"></div>
@@ -386,7 +386,7 @@ def page_index():
 <section class="sec alt" id="how"><div class="wrap">
   <div class="sec-head"><span class="eyebrow">How it works</span><h2>Three-Step Order Process</h2></div>
   <div class="steps3">{"".join(f'<div class="st3 tilt"><span class="n">{n}</span><h3>{t}</h3><p>{d}</p></div>' for n, t, d in steps)}</div>
-  <p class="center fine pay-line">{ic("cash")} Pay your way: Cash on Delivery · bKash (merchant {BKASH}) · Card (message us on WhatsApp)</p>
+  <p class="center fine pay-line">{ic("cash")} Pay your way: Cash on Delivery · bKash (merchant {BKASH})</p>
   <p class="center fine">{ic("exchange")} Wrong size? Easy exchange within 72 hours of delivery (delivery and return charges apply).</p>
 </div></section>
 <section class="sec" id="faq"><div class="wrap narrow"><div class="sec-head"><span class="eyebrow">FAQ</span><h2>Got Questions? We've Got Answers.</h2></div>{faq_block()}</div></section>
@@ -407,7 +407,7 @@ def page_checkout():
       <h3 class="sum-t">Delivery details</h3>
       {contact_fields()}
       <fieldset class="fld"><legend>Payment</legend><div class="opt on-static"><span><b>Cash on Delivery</b><em>Pay in BDT when your parcel arrives</em></span></div>
-        <p class="fine pay-more">Prefer to pay online? bKash: merchant account <b>{BKASH}</b> (Payment option). Card: please message us on <a href="https://wa.me/{WA}" target="_blank" rel="noopener">WhatsApp</a>. Tell our team when we call to confirm your order.</p></fieldset>
+        <p class="fine pay-more">Prefer to pay online? bKash: merchant account <b>{BKASH}</b> (Payment option). Tell our team when we call to confirm your order.</p></fieldset>
       <p class="err-box" id="sendErr" role="alert" hidden>Sorry, we couldn't place your order. Please check your connection and try again, or call us on {PHONE_DISPLAY}.</p>
       <div class="co-submit"><button class="btn lg block" type="submit" id="submitBtn">Place order</button></div>
       <p class="fine center">{ic("shield")} Your details are used only to deliver your order.</p>
@@ -444,8 +444,8 @@ def page_thanks():
     write("thank-you.html", h)
 
 def write_data_files():
-    data = {p["slug"]: {"title": f"Babyglee Bounce — {p['name']}", "name": p["name"], "img": f"img/{p['img']}.webp", "images": [f"img/{p['img']}.webp"], "url": "#shop", "sku": "BSTD-01-" + p["key"].upper(),
-            "color": p["name"], "colorHex": p["color"], "price": PRICE, "listPrice": LIST, "priceUsd": PRICE_USD, "sizes": list(range(21, 37)), "out": [], "low": {}} for p in PRODUCTS}
+    data = {p["slug"]: {"title": f"Sneaker – {p['name']}", "name": p["name"], "img": f"img/{p['img']}.webp", "images": [f"img/{p['img']}.webp"], "url": "#shop", "sku": "BSTD-01-" + p["key"].upper(),
+            "color": p["name"], "colorHex": p["color"], "price": PRICE, "listPrice": LIST, "priceUsd": PRICE_INTL, "sizes": list(range(21, 37)), "out": [], "low": {}} for p in PRODUCTS}
     (OUT / "assets" / "products.js").write_text("/* generated by tools/build.py (static fallback; with the backend this file is served from the database) */\nwindow.BG_PRODUCTS = " + json.dumps(data, ensure_ascii=False, indent=1) + ";\n", encoding="utf-8")
     (OUT / "assets" / "reviews.js").write_text("/* static fallback; with the backend this file is served from the database (Admin > Reviews) */\nwindow.BG_REVIEWS = [];\n", encoding="utf-8")
 

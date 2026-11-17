@@ -599,7 +599,7 @@ if ($page === 'products') {
 if ($page === 'product') {
     $id = (int) ($_GET['id'] ?? 0); $p = null;
     if ($id) { $st = $pdo->prepare('SELECT * FROM products WHERE id = ?'); $st->execute([$id]); $p = $st->fetch() ?: null; }
-    $v = $p ?: ['name' => 'Babyglee Bounce — ', 'color' => '', 'sku' => 'BSTD-01-', 'price' => 1290, 'list_price' => 1800, 'price_usd' => 15, 'cost' => 0, 'color_hex' => '#24babc', 'sizes' => implode(',', BG_SIZES), 'active' => 1, 'sort' => 10, 'img' => ''];
+    $v = $p ?: ['name' => 'Sneaker – ', 'color' => '', 'sku' => 'BSTD-01-', 'price' => 1290, 'list_price' => 1800, 'price_usd' => 35, 'cost' => 0, 'color_hex' => '#24babc', 'sizes' => implode(',', BG_SIZES), 'active' => 1, 'sort' => 10, 'img' => ''];
     $have = array_map('intval', explode(',', (string) $v['sizes']));
     $vars = [];
     if ($p) { $vq = $pdo->prepare('SELECT size, stock FROM variants WHERE product_id = ? ORDER BY size'); $vq->execute([$id]); foreach ($vq as $r) $vars[(int) $r['size']] = (int) $r['stock']; }
@@ -617,7 +617,7 @@ if ($page === 'product') {
       <label>Product name<input name="name" required maxlength="150" value="' . h($v['name']) . '"></label>
       <div class="f2"><label>Colour name<input name="color" maxlength="80" value="' . h($v['color']) . '" placeholder="e.g. Grey"></label><label>Colour dot<input type="color" name="color_hex" value="' . h($v['color_hex']) . '"></label></div>
       <label>SKU (item ID sent to GA4 / Meta)<input name="sku" required maxlength="60" value="' . h($v['sku']) . '"></label>
-      <div class="f3"><label>Price (৳)<input type="number" name="price" min="1" required inputmode="numeric" value="' . (int) $v['price'] . '"></label><label>Old price (৳)<input type="number" name="list_price" min="0" inputmode="numeric" value="' . (int) $v['list_price'] . '"></label><label>USD price<input type="number" name="price_usd" min="0" inputmode="numeric" value="' . (int) $v['price_usd'] . '"></label></div>
+      <div class="f3"><label>Price (৳)<input type="number" name="price" min="1" required inputmode="numeric" value="' . (int) $v['price'] . '"></label><label>Old price (৳)<input type="number" name="list_price" min="0" inputmode="numeric" value="' . (int) $v['list_price'] . '"></label><label>International price (€)<input type="number" name="price_usd" min="0" inputmode="numeric" value="' . (int) $v['price_usd'] . '"></label></div>
       <label>Purchase price / your cost per pair (৳) — private, never shown on the website<input type="number" name="cost" min="0" inputmode="numeric" value="' . (int) ($v['cost'] ?? 0) . '"></label>' . ((int) ($v['cost'] ?? 0) > 0 ? '<p class="mut">Margin: <b>' . taka((int) $v['price'] - (int) $v['cost']) . '</b> per pair (' . round(((int) $v['price'] - (int) $v['cost']) / max(1, (int) $v['price']) * 100) . '%), before delivery and ad cost.</p>' : '') . '
       ' . $varHtml . '
       ' . $galleryHtml . '

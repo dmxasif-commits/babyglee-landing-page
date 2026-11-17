@@ -325,7 +325,7 @@ const cardHTML = (s, p) => {
     ${ims.length > 1 ? `<div class="thumbs">${ims.map((u, i) => `<button type="button" class="th${i ? '' : ' on'}" data-img="${esc(u)}" aria-label="Photo ${i + 1}"><img src="${esc(u)}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}</div>
   <div class="pc-body"><h3>${esc(p.title.replace(/^Babyglee\s+/, ''))}</h3>
     <div class="pc-price">${l > pr ? `<s>${fmt(l)}</s> ` : ''}<b>${fmt(pr)}</b>${l > pr ? `<span class="off">Save ${Math.round((l - pr) / l * 100)}%</span>` : ''}</div>
-    ${usd ? `<p class="usd-line">US$${usd} <span>international price</span></p>` : ''}
+    ${usd ? `<p class="usd-line">€${usd} <span>international price</span></p>` : ''}
     <fieldset class="pc-sizes"><button type="button" class="btn block ghost find-size" data-open-size>${RULER} Find the right size<small>Enter your child's foot length in cm</small></button><legend>Choose size (EU)</legend><div class="szs">${chips}</div><small class="err"></small></fieldset>
     <div class="pc-buy"><div class="qty"><button type="button" data-q="-1" aria-label="Decrease quantity">−</button><output>1</output><button type="button" data-q="1" aria-label="Increase quantity">+</button></div>
       ${sold ? '<button class="btn" type="button" disabled>Sold out</button>' : `<button class="btn" type="button" data-add>${BAG} Add to cart</button>`}</div>
@@ -407,7 +407,7 @@ function showAdded(slug, size, added) {
 if (page === 'landing') {
   /* hero price follows the admin catalogue */
   const slugsAll = Object.keys(PR);
-  if (slugsAll.length) { const pt = $('.hero .price-tag'); if (pt) { const lo = Math.min(...slugsAll.map(priceOf)), hi = Math.max(...slugsAll.map(listOf)); $('b', pt).textContent = fmt(lo); const s = $('s', pt); s.textContent = fmt(hi); s.hidden = !(hi > lo); } const un = $('.hero .usd-note b'); if (un) un.textContent = 'US$' + Math.max(...slugsAll.map(usdOf)); }
+  if (slugsAll.length) { const pt = $('.hero .price-tag'); if (pt) { const lo = Math.min(...slugsAll.map(priceOf)), hi = Math.max(...slugsAll.map(listOf)); $('b', pt).textContent = fmt(lo); const s = $('s', pt); s.textContent = fmt(hi); s.hidden = !(hi > lo); } const un = $('.hero .usd-note b'); if (un) un.textContent = '€' + Math.max(...slugsAll.map(usdOf)); }
   const grid = $('#grid'), slugs = slugsAll, listId = 'landing', listName = 'Landing - Bounce series';
   grid.innerHTML = slugs.length ? slugs.map(s => cardHTML(s, PR[s])).join('') : '<p class="empty-note">No products are available right now. Please check back soon.</p>';
   $$('.pc', grid).forEach(c => { const b = $('[data-open-size]', c); b.sizeTarget = eu => { const r = $(`input[value="${eu}"]`, c); if (r && !r.disabled) { r.checked = true; $('.err', c).textContent = ''; } }; });
@@ -441,12 +441,13 @@ if (page === 'landing') {
 
   /* reviews: real customer reviews added in the admin panel (text or screenshot); the section stays hidden when there are none */
   if (RV.length) {
-    const avg = RV.reduce((a, r) => a + (+r.rating || 5), 0) / RV.length;
+    /* a review without a star rating (rating 0, for example a quote copied from the Facebook page) shows no stars and is left out of the average: nothing is made up */
+    const rated = RV.filter(r => +r.rating > 0), avg = rated.length ? rated.reduce((a, r) => a + +r.rating, 0) / rated.length : 0, starsOf = r => +r.rating > 0 ? `<span class="stars">${stars(+r.rating)}</span>` : '';
     $('#reviews').hidden = false; const nv = $('#navReviews'); if (nv) nv.hidden = false;
-    $('#rvSum').innerHTML = `<span class="stars">${stars(Math.round(avg))}</span> <b>${avg.toFixed(1)}</b> out of 5 from ${RV.length} review${RV.length > 1 ? 's' : ''}`;
+    $('#rvSum').innerHTML = rated.length ? `<span class="stars">${stars(Math.round(avg))}</span> <b>${avg.toFixed(1)}</b> out of 5 from ${rated.length} review${rated.length > 1 ? 's' : ''}` : `${RV.length} review${RV.length > 1 ? 's' : ''} from our customers`;
     $('#rvTrack').innerHTML = RV.map(r => r.img
-      ? `<figure class="rvc shot"><button type="button" data-shot="${esc(r.img)}" aria-label="Open review screenshot"><img src="${esc(r.img)}" alt="Review by ${esc(r.name)}" loading="lazy"></button><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}<span class="stars">${stars(+r.rating || 5)}</span>${r.text ? `<p>${esc(r.text)}</p>` : ''}</figcaption></figure>`
-      : `<figure class="rvc"><span class="stars">${stars(+r.rating || 5)}</span><p>“${esc(r.text)}”</p><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}</figcaption></figure>`).join('');
+      ? `<figure class="rvc shot"><button type="button" data-shot="${esc(r.img)}" aria-label="Open review screenshot"><img src="${esc(r.img)}" alt="Review by ${esc(r.name)}" loading="lazy"></button><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}${starsOf(r)}${r.text ? `<p>${esc(r.text)}</p>` : ''}</figcaption></figure>`
+      : `<figure class="rvc">${starsOf(r)}<p>“${esc(r.text)}”</p><figcaption><b>${esc(r.name)}</b>${r.city ? ' · ' + esc(r.city) : ''}</figcaption></figure>`).join('');
     $('#rvTrack').addEventListener('click', e => { const b = e.target.closest('[data-shot]'); if (!b) return; $('#shotImg').src = b.dataset.shot; lastFocus = b; openSheet($('#shotBox')); });
   }
 }

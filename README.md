@@ -1,6 +1,6 @@
 # Babyglee: landing page
 
-Kids' sneakers sold on a three-step landing page, built for phones (visitors come from Facebook ads in Bangladesh). Everything is in English; prices are in taka (৳) with a US$ line.
+Kids' sneakers sold on a three-step landing page, built for phones (visitors come from Facebook ads in Bangladesh). Everything is in English; prices are in taka (৳) with a € international price line.
 
 | Step | File | What happens |
 |---|---|---|
@@ -21,7 +21,7 @@ Plus `shipping-returns.html`, `privacy.html`, `terms.html`.
 
 - **Customer reviews:** Admin → Reviews (text or a screenshot of a real review). The section stays hidden until you add one. No reviews or statistics are made up.
 - **More product photos:** Admin → Products → a product → *More photos*.
-- Placeholders to confirm: price ৳1,290 (list ৳1,800), US$30, delivery ৳80 inside / ৳130 outside Dhaka, WhatsApp number (Admin → Settings).
+- Placeholders to confirm: price ৳1,290 (list ৳1,800), €35, delivery ৳80 inside / ৳130 outside Dhaka, WhatsApp number (Admin → Settings).
 
 ## Rules
 
@@ -29,13 +29,24 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-17: International price €35, bKash info only, new product names, new Grey photo
+- Backup of the live site before the changes: `backups/site-2026-11-17-before-euro-grey-update.zip`.
+- **International price is now €35** (hero line and product cards show "€35"). The database field (`price_usd`) and the JSON key (`priceUsd`) keep their old names to avoid breaking anything; the admin label reads "International price (€)". Schema v9 sets it to 35 only for products still at an old default (15 or 30); a price you set yourself is kept.
+- **Payment: bKash is information only, no card.** Where the site mentioned card payment (FAQ, order steps, checkout, Shipping & Returns, Terms) the card wording is removed. bKash merchant account 01974974973 (Payment option) is shown as information; the order itself is still recorded as Cash on Delivery.
+- **Product names from the backend code:** schema v9 renames the five products by slug (`bounce-sky-blue`, `bounce-blue-beige`, `bounce-grey`, `bounce-navy-brown`, `bounce-black`) to "Sneaker – Multi Color", "Sneaker – Blue & Beige", "Sneaker – Charcoal Grey", "Sneaker – Dark Navy", "Sneaker – Black" (colour names without the prefix). Slugs, SKUs and photos stay, so GA4/Meta item IDs do not change. The migration runs once, on the first request after the deploy; names edited later in Admin → Products are kept. The fresh-install seed and the static fallback use the same names.
+- **New photo for the Grey product (`img/grey.webp`):** the supplied photo with the grey studio background and floor shadows removed (transparent, like the other four photos, so the card colour shows through), cropped and resized to 900 px wide (60 KB).
+- **Customer reviews from the main website (given by the owner):** the ten testimonials on babygleebd.com/welcome/Bangladesh (the Facebook page reviews) are added by schema v10, name and text exactly as published. A text cut off by the main site ("quali...") is shortened to its last full sentence and nothing is added or changed. No photos (they show private people and children) and **no star rating**: the main site publishes none, so rating 0 is stored; `assets/main.js` now shows no stars for a review without a rating and counts only rated reviews in the average (the summary reads "10 reviews from our customers"). Added only when the reviews table is empty, so reviews added in Admin are never duplicated; edit, hide or delete them in Admin → Reviews.
+- Partner logos: not added. They are not on the main babygleebd.com pages (checked `/`, `/shop`, `/shop/bangladesh`, `/welcome/Bangladesh`); the section appears as soon as the four logo files are placed in `img/partners/`.
+- Tests: schema migration on a copy of an old database (names and colours renamed, 30 → 35, a custom price 40 kept, fresh install seeds the new names; reviews: seeded once when none exist, not when the owner already has one, schema_version 10) and a browser check at 360, 390 and 1280 px (title, "€35" in the hero and on the card, the reviews section with 10 cards and no stars, no horizontal scroll, no console errors).
+- Files: `tools/build.py` (generated pages and `assets/products.js`), `api/lib.php`, `admin/index.php`, `assets/main.js`, `assets/config.js`, `img/grey.webp`, `docs/backend-setup.md`, `README.md`.
+
 ### 2026-11-17: Tracking tidy-up (dataLayer only, no key renames)
 - Backup of the live site before the changes: `backups/site-2026-11-17-before-datalayer-update.zip`.
 - **`external_id`:** the visitor UUID lives in the first-party cookie `bg_uid`, renewed on every visit (asked for 730 days; Chrome caps script-set cookies at 400 days, Safari is shorter). A copy in localStorage restores the cookie when it expires or is cleared, so the value stays the same on every page and visit.
 - **Purchase once per order:** the order id is stored in sessionStorage and localStorage (`bg_purchased`, last 50 orders) and is checked again in the same moment the event is pushed, so a reload, back/forward or a later visit to the thank-you page sends nothing. The event_id stays `purchase_<orderId>`.
 - Checked, no change needed: `meta_user_data` on `purchase` already holds SHA-256 hashes of the phone (digits with country code, `8801700000000`), first name, last name, city, country and external_id (first name and city are lowercased and stripped of punctuation and spaces, as Meta specifies). Every other event's `event_id` is unique per event (tested over a browsing session).
 - Not possible as asked: `begin_checkout` fires when the checkout page opens, before the visitor has typed anything, so it has no name, phone or city to hash. The first events that carry `meta_user_data` are `add_shipping_info`, `add_payment_info`, `generate_lead` and `purchase`.
-- Open decision: whether `ecommerce.value` should include delivery (now it does not; `order_total` and `ecommerce.shipping` are sent next to it).
+- Decided by the owner: `ecommerce.value` stays the product price without delivery (1290); delivery stays in `ecommerce.shipping` (`order_total` is sent next to it).
 - Files: `assets/tracking.js`, `assets/main.js`, `docs/gtm-tracking.md`, `docs/meta-tracking.md`, `README.md`.
 
 ### 2026-11-17: Copy update from the team's "Landing page" review document

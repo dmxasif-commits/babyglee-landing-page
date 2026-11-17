@@ -45,7 +45,7 @@ function migrate(PDO $pdo, bool $sqlite): void {
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
     $ver = 0;
     try { $ver = (int) $pdo->query("SELECT v FROM settings WHERE k = 'schema_version'")->fetchColumn(); } catch (Throwable $e) { /* first run */ }
-    if ($ver >= 8) return;
+    if ($ver >= 10) return;
     if ($ver < 1) {
     $ai = $sqlite ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT AUTO_INCREMENT PRIMARY KEY';
     $eng = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
@@ -63,11 +63,11 @@ function migrate(PDO $pdo, bool $sqlite): void {
         try { $pdo->exec($q); } catch (Throwable $e) { /* index already exists */ }
     }
     if (!(int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn()) {
-        $seed = [['sky-blue', 'Sky Blue & Yellow', '#3fb4e8', 'sky-blue-yellow'], ['blue-beige', 'Blue & Beige', '#3d7fa5', 'blue-beige'], ['grey', 'Grey', '#8a9096', 'grey'],
-            ['navy-brown', 'Navy & Brown', '#26335a', 'navy-brown'], ['black', 'Black', '#262626', 'black']];
+        $seed = [['sky-blue', 'Multi Color', '#3fb4e8', 'sky-blue-yellow'], ['blue-beige', 'Blue & Beige', '#3d7fa5', 'blue-beige'], ['grey', 'Charcoal Grey', '#8a9096', 'grey'],
+            ['navy-brown', 'Dark Navy', '#26335a', 'navy-brown'], ['black', 'Black', '#262626', 'black']];
         $st = $pdo->prepare('INSERT INTO products (slug, sku, name, color, color_hex, img, price, list_price, price_usd, sizes, page, active, sort, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?,?)');
         foreach ($seed as $i => $s) {
-            $st->execute(['bounce-' . $s[0], 'BSTD-01-' . strtoupper($s[0]), 'Babyglee Bounce — ' . $s[1], $s[1], $s[2], 'img/' . $s[3] . '.webp', 1290, 1800, 30, implode(',', BG_SIZES), '#shop', $i, now()]);
+            $st->execute(['bounce-' . $s[0], 'BSTD-01-' . strtoupper($s[0]), 'Sneaker – ' . $s[1], $s[1], $s[2], 'img/' . $s[3] . '.webp', 1290, 1800, 35, implode(',', BG_SIZES), '#shop', $i, now()]);
         }
     }
     }
@@ -117,6 +117,33 @@ function migrate(PDO $pdo, bool $sqlite): void {
     /* version 8: the international price is US$30 (was US$15): only products still at the old default 15 are changed, a price you set yourself is kept */
     try { $pdo->exec("UPDATE products SET price_usd = 30 WHERE price_usd = 15"); } catch (Throwable $e) { /* products table cannot be missing here */ }
     set_setting('schema_version', '8');
+    /* version 9: the international price is EUR 35 (the field price_usd keeps its name): only products still at an old default (15 or 30) are changed, a price you set yourself is kept.
+       The five products get the new names and colours (matched by slug; slug, SKU and photo stay). */
+    try { $pdo->exec("UPDATE products SET price_usd = 35 WHERE price_usd IN (15, 30)"); } catch (Throwable $e) { /* products table cannot be missing here */ }
+    foreach (['bounce-sky-blue' => 'Multi Color', 'bounce-blue-beige' => 'Blue & Beige', 'bounce-grey' => 'Charcoal Grey', 'bounce-navy-brown' => 'Dark Navy', 'bounce-black' => 'Black'] as $slug => $color) {
+        try { $pdo->prepare('UPDATE products SET name = ?, color = ? WHERE slug = ?')->execute(['Sneaker – ' . $color, $color, $slug]); } catch (Throwable $e) { /* keep going */ }
+    }
+    set_setting('schema_version', '9');
+    /* version 10: the owner's real customer reviews from the main website (babygleebd.com/welcome/Bangladesh, the Facebook page reviews), as given by the owner.
+       Only when no review exists yet, so reviews added in Admin are never duplicated. Name and text exactly as published (a cut-off sentence is shortened to its last full sentence, nothing is added),
+       no photos and no star rating (rating 0 shows no stars and is not counted in the average). Edit or remove them in Admin > Reviews. */
+    try {
+        if (!(int) $pdo->query('SELECT COUNT(*) FROM reviews')->fetchColumn()) {
+            $rv = [['Arnia Antor', 'Third time purchase from Babyglee. Alhamdulillah products are same as the picture.'],
+                ['Tyeba Ahasan', '1st time purchased from here and the shoe is so nice and comfortable, my son loves it sooo much.'],
+                ['Hafsa Akther', 'There product are awesome'],
+                ['Shirajum Munira Reme', '1st purchased from Babyglee..my baby loves them so much.'],
+                ['Sumya Rani', 'very happy after getting the product. products are the same as shown in the picture.'],
+                ['Sumaiya Farhin Mou', "I'm a regular customer of Babyglee. Must say their product quality is good."],
+                ['Sabab Sohani Kazi', 'I have bought 5 pairs of shoes from babyglee.'],
+                ['Sumona Ahmed Mim', 'So much adorable and soft designed shoes I have ever seen.'],
+                ['Naz Mahmud', 'It’s really nice experience with Babyglee. Very nice products with quality service . Thank you...'],
+                ['Sharmin Simi', 'Happy with Babyglee super first service nd there products are also good..thank you Babyglee..']];
+            $ins = $pdo->prepare("INSERT INTO reviews (name, city, rating, body, img, active, sort, created_at) VALUES (?, '', 0, ?, '', 1, ?, ?)");
+            foreach ($rv as $i => $r) $ins->execute([$r[0], $r[1], 100 - $i, now()]);
+        }
+    } catch (Throwable $e) { /* reviews table missing: nothing to seed */ }
+    set_setting('schema_version', '10');
 }
 
 function now(): string { return date('Y-m-d H:i:s'); }
