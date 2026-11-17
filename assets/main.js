@@ -109,7 +109,7 @@ function bindFinder(p, onChange) {
       if (onChange) onChange(null); return;
     }
     out.textContent = 'EU ' + r.eu; age.textContent = '≈ ' + r.age;
-    note.textContent = `Foot ${v.toFixed(1)} cm + 1 cm = ${(v + 1).toFixed(1)} cm insole${wide.checked ? ', one size up for wide feet or thick socks' : ''}.`;
+    note.textContent = `Foot ${v.toFixed(1)} cm + 1 cm = ${(v + 1).toFixed(1)} cm (${((v + 1) / 2.54).toFixed(1)} in) insole${wide.checked ? ', one size up for wide feet or thick socks' : ''}.`;
     $$('tr[data-eu="' + r.eu + '"]', scope).forEach(x => x.classList.add('hl'));
     if (onChange) onChange(r.eu);
   };
@@ -152,7 +152,8 @@ if (sizeModal) {
   use.addEventListener('click', () => { if (sizeTarget && use.dataset.eu) sizeTarget(+use.dataset.eu); closeSheet(sizeModal); });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-open-size]'); if (!b) return;
-    sizeTarget = b.sizeTarget || null; recalc(); openSheet(sizeModal);   // recalc: the kept measurement shows its "Select EU xx" button again    T.push({ event: 'size_guide_open', page_type: PAGE_TYPES[page] || 'other' });
+    sizeTarget = b.sizeTarget || null; recalc(); openSheet(sizeModal);   // recalc: the kept measurement shows its "Select EU xx" button again
+    T.push({ event: 'size_guide_open', page_type: PAGE_TYPES[page] || 'other' });
   });
 }
 
@@ -390,6 +391,18 @@ function addToCart(slug, size, qty) {
 }
 
 
+/* "Added to your cart" pop-up: what was added, cart total, keep shopping or check out */
+function showAdded(slug, size, added) {
+  const pop = $('#addedPop'); if (!pop) return;
+  const p = PR[slug]; if (!p) return;
+  const img = $('#apImg'); img.src = imgsOf(slug)[0]; img.alt = p.title;
+  $('#apName').textContent = String(p.title).replace(/^Babyglee\s+/, '');
+  $('#apMeta').textContent = `EU ${size} × ${added} · ${fmt(priceOf(slug) * added)}`;
+  const n = count(); $('#apCount').textContent = `Your cart: ${n} ${n === 1 ? 'pair' : 'pairs'}`; $('#apTotal').textContent = fmt(subtotal());
+  $('#apGo').textContent = 'Checkout · ' + fmt(subtotal());
+  openSheet(pop);
+}
+
 if (page === 'landing') {
   /* hero price follows the admin catalogue */
   const slugsAll = Object.keys(PR);
@@ -412,6 +425,7 @@ if (page === 'landing') {
     o.textContent = '1'; r.checked = false;
     const btn = $('[data-add]', c); btn.classList.add('added'); btn.innerHTML = 'Added ✓'; setTimeout(() => { btn.classList.remove('added'); btn.innerHTML = BAG + ' Add to cart'; }, 1400);
     $('.pc-msg', c).innerHTML = `EU ${size} × ${added} added${added < n ? ' (maximum 10 per size)' : ''}. <a href="checkout.html">Checkout</a> or pick another size or colour.`;
+    showAdded(s, size, added);
   });
   grid.addEventListener('change', e => { if (!e.target.matches('input[type=radio]')) return; const c = e.target.closest('.pc'); $('.err', c).textContent = ''; touch(c); T.push({ event: 'select_size', item_id: PR[c.dataset.slug].sku, size: 'EU ' + e.target.value }); });
   const sendList = () => T.ecom('view_item_list', { item_list_id: listId, item_list_name: listName, items: slugs.map((s, n) => T.item(s, { index: n, listId, listName })) });
