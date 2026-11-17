@@ -287,7 +287,7 @@ async function stageEvent(name, cust, items, area, extra) {
   return T.ecom(name, ecommerce, payload);
 }
 /* Purchase event from what the server accepted for this order (items, prices, delivery), never from the current catalogue or settings. */
-async function purchaseEvent(o) {
+async function purchaseEvent(o, beforePush) {
   const src = o.accepted && o.accepted.length ? o.accepted : o.items;
   const items = src.map((i, n) => {
     const g = T.item(i.slug, { size: i.size, qty: i.qty, index: n });
@@ -297,6 +297,7 @@ async function purchaseEvent(o) {
   const value = o.subtotal != null ? o.subtotal : valueOf(items);
   /* if hashing the customer data stalls, the Purchase is still sent (without it) rather than lost */
   let cd = {}; try { cd = await within(T.customerData({ name: o.name, phone: o.phone, email: o.email, address: o.address, district: o.district }), 2500) || {}; } catch (e) {}
+  if (beforePush && beforePush() === false) return;   // already reported for this order (checked again right before the push)
   const payload = Object.assign({ user_data: cd.user_data, meta_user_data: cd.meta_user_data }, T.ids(), { event_id: 'purchase_' + o.id, transaction_id: o.id, order_total: o.total, order_source: 'landing', payment_type: 'Cash on Delivery', shipping_tier: o.area });
   return T.ecom('purchase', { transaction_id: o.id, value, shipping: o.delivery, tax: 0, items }, payload);
 }
@@ -502,12 +503,16 @@ if (page === 'thanks') {
     $('#rItems').innerHTML = itemsHTML(o.items);
     $('#rA').textContent = o.address + ', ' + o.district + ' (' + o.area + ')'; $('#rT').textContent = fmt(o.total); $('#rPh').textContent = o.phone;
     $('#demoNote').hidden = !o.demo;
-    const k = 'bg_purchased'; let done = []; try { done = JSON.parse(sessionStorage.getItem(k) || '[]'); } catch (e) {}
+    /* The order id is remembered in sessionStorage and localStorage; a reload, a back/forward visit or a later visit never sends the same order again. */
+    const k = 'bg_purchased', readDone = () => { let all = []; [sessionStorage, localStorage].forEach(st => { try { all = all.concat(JSON.parse(st.getItem(k) || '[]')); } catch (e) {} }); return all; };
     /* A demo order (no backend) is not a sale: it sends no Purchase unless localStorage bg_track_demo = 1 (for testing the dataLayer). */
     let demoOff = false; try { demoOff = !!o.demo && localStorage.getItem('bg_track_demo') !== '1'; } catch (e) { demoOff = !!o.demo; }
-    if (!done.includes(o.id) && !demoOff) {
-      /* the order is marked as reported only after the event is really in the dataLayer, so an interrupted page load can send it again */
-      purchaseEvent(o).then(() => { try { done.push(o.id); sessionStorage.setItem(k, JSON.stringify(done)); } catch (e) {} }).catch(() => {});
+    if (!readDone().includes(o.id) && !demoOff) {
+      /* marked in the same moment the event goes into the dataLayer (after the customer data is hashed), so a quick reload cannot send it twice */
+      purchaseEvent(o, () => {
+        const all = readDone(); if (all.includes(o.id)) return false;
+        const next = JSON.stringify(all.concat(o.id).slice(-50)); [sessionStorage, localStorage].forEach(st => { try { st.setItem(k, next); } catch (e) {} });
+      }).catch(() => {});
     }
   }
 }

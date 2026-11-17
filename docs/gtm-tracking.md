@@ -32,7 +32,7 @@ All values are in **BDT**. Every event has a unique `event_id`.
 | `begin_checkout` | checkout page load (page 2) | |
 | `add_shipping_info` | name, phone, district and address are all valid | `shipping_tier`, customer data attached |
 | `add_payment_info` | order submitted | `payment_type: "Cash on Delivery"` |
-| `purchase` | order accepted | see below. Fires once per order |
+| `purchase` | order accepted | see below. Fires once per order: the order id is kept in sessionStorage and localStorage (`bg_purchased`) and is checked again right before the push, so a reload or a later visit sends nothing |
 | `size_guide_open`, `select_size`, `quick_add_open`, `whatsapp_click` | UX events | custom events (not GA4 recommended events) |
 
 **Item object** (GA4 format): `item_id` (SKU `BSTD-01-GREY`), `item_name`, `item_brand`, `item_category` (`Kids sneakers`),
@@ -67,7 +67,7 @@ The site hashes customer data **once**, in the browser, with SHA-256 (hex). No p
 | Email | trimmed, lowercase, hashed (`sha256_email_address`) | same hash (`em`). Optional field on the form |
 | Name | lowercase, hashed (`address.sha256_first_name`, `sha256_last_name`) | `fn`, `ln` (lowercase, no punctuation, hashed) |
 | Address | street hashed; `city`/`region` = district, `country` = `BD` | `ct` hashed, `country` = hash of `bd` |
-| Visitor | | `external_id` = hash of a first-party visitor ID (cookie `bg_uid`, 400 days) |
+| Visitor | | `external_id` = hash of a first-party visitor ID (cookie `bg_uid` renewed on every visit, up to 2 years where the browser allows it, Chrome caps it at 400 days; a copy in localStorage restores it) |
 
 Other identifiers sent with events: `fbp` (Meta browser cookie), `fbc` (built from `fbclid` when you arrive from a Meta ad),
 UTMs, `gclid` / `gbraid` / `wbraid`, `ttclid`. First-touch and last-touch attribution is kept in `localStorage` (`bg_attr`).

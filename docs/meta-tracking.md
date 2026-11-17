@@ -26,7 +26,7 @@ Rules that keep numbers clean: the same `event_id` goes to the browser Pixel tag
 | `event_id` | unique ID shared by browser and server tag | `event_id` |
 | `event_time` | Unix seconds | `event_time` |
 | `event_source_url` | page URL | `event_source_url` |
-| `external_id` | first-party visitor ID (random UUID, cookie `bg_uid`, 400 days) | `external_id` (let the tag hash it) |
+| `external_id` | first-party visitor ID (random UUID, cookie `bg_uid` renewed on every visit, with a localStorage copy that restores it; browsers cap script-set cookies, Chrome at 400 days) | `external_id` (let the tag hash it) |
 | `fbp`, `fbc` | Meta cookies `_fbp`, `_fbc` (never changed or lower-cased; `_fbc` is built from `fbclid` when the Pixel has not) | `fbp`, `fbc` |
 | `utm_*`, `fbclid`, `gclid`… | campaign data | custom / GA4 |
 | `meta_custom_data` | `content_type: product`, `content_ids` (SKUs), `contents` (id, quantity, item_price), `num_items`, `value`, `currency: BDT` | `custom_data` |

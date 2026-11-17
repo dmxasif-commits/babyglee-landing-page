@@ -33,9 +33,12 @@
   function eventId(prefix) { return prefix + '_' + Date.now().toString(36) + '_' + rand(); }
 
   /* ---------- visitor id (first-party, for Meta external_id) ---------- */
+  /* One UUID per browser: first-party cookie (renewed on every visit; browsers cap script-set cookies, Chrome at 400 days, Safari shorter) with a copy in localStorage that restores the cookie when it expires or is cleared, so the value stays the same on every page and visit. */
   var uid = getCookie('bg_uid');
+  if (!uid) { try { uid = localStorage.getItem('bg_uid') || ''; } catch (e) {} }
   if (!uid) { uid = uuid(); }
-  setCookie('bg_uid', uid, 400);
+  setCookie('bg_uid', uid, 730);
+  try { localStorage.setItem('bg_uid', uid); } catch (e) {}
   /* _fbp: Meta's browser ID (fb.1.<time ms>.<random>). Created here only if the Pixel has not made it yet, so server-side events always carry it. */
   if (!getCookie('_fbp')) setCookie('_fbp', 'fb.1.' + Date.now() + '.' + Math.floor(Math.random() * 1e10), 90);
 
