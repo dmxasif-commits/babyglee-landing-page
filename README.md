@@ -4,7 +4,7 @@ Kids' sneakers sold on a three-step landing page, built for phones (visitors com
 
 | Step | File | What happens |
 |---|---|---|
-| 1 | `index.html` | Hero, five products (colour, photo gallery, sizes EU 21–36, add several to the cart), why sneakers for kids, why Babyglee, sole details, size finder, customer reviews, how ordering works, FAQ |
+| 1 | `index.html` | Hero, five products (colour, photo gallery, sizes EU 21–36, add several to the cart), why Babyglee® (benefits with the photo), size finder, customer reviews, how ordering works, FAQ |
 | 2 | `checkout.html` | Edit the cart, name, +88 mobile number, district, address, Cash on Delivery, place order |
 | 3 | `thank-you.html` | Order confirmation; the `purchase` event fires here once |
 
@@ -28,6 +28,23 @@ Plus `shipping-returns.html`, `privacy.html`, `terms.html`.
 See `CLAUDE.md`: record every change below, back up before changing, mobile first, never commit `api/config.php`.
 
 ## Changelog
+
+### 2026-11-17: Copy update from the team's "Landing page" review document
+- Backup of the live site before the changes: `backups/site-2026-11-17-before-copy-update.zip`.
+- **Announcement bar:** "Available in Bangladesh · Designed for European markets · Cash on Delivery · 72-Hour Easy Exchanges" plus a tap-to-call number; on phones it shows "Available in Bangladesh" and the number. Nav: Why Babyglee®, Size Guide, Shop Now.
+- **Hero:** new headline and text ("Designed for active, healthy feet development."), the "International brand" pill is gone, "(Cash on Delivery)" next to the price, chip "Soft cushioning". The four trust badges under the hero are removed; only the delivery line stays.
+- **Delivery everywhere is now "2–3 days"** (no "working days"): delivery line, order steps, FAQ, Shipping & Returns, thank-you page, cart pop-up.
+- **Products:** section text "Choose your size, fill your cart, and check out all at once."; seed/fallback names are now Multi Color, Blue & Beige, Charcoal Grey, Dark Navy, Black. The live names come from Admin → Products and must be renamed there.
+- **"Why Babyglee®" and "The details that matter" are one section:** new headline and text, the sneaker photo with numbered points next to six benefits (Breathable Microfiber, Soft & Comfortable Cushioning, Easy Front-Lock Strap, Anti-Slip Rubber Sole, Zero Toxic Chemicals, European Design).
+- **Size guide:** the insole length is shown in cm and inches (table and the size finder note).
+- **Order steps** reworded ("Three-Step Order Process"); a line with the payment options (Cash on Delivery, bKash merchant 01974974973, card via WhatsApp). The checkout shows the same options as information; the order itself is still recorded as Cash on Delivery.
+- **FAQ** ("Got Questions? We've Got Answers.") and the **Shipping & Returns, Privacy and Terms** pages use the content of the main babygleebd.com pages, adapted to this site where the main store text does not apply (no customer accounts, Bangladesh delivery in 2–3 days, 72-hour exchange, payment options, size advice = insole = foot + 1 cm).
+- **Footer:** "Ready for Healthy Growing Feet?", new blurb ("available in Bangladesh"), columns Customer Care / Shop / Company / Reach Us, office hours 11 AM – 9 PM (BST).
+- **New: "Added to your cart" pop-up** after every add to cart (product, size, cart total, Continue shopping / Checkout).
+- **New: partner logos section** (ToguMogu, Shishu Poribohon, Prelegant Mall, Rokomari). It appears only for logo files placed in `img/partners/` (`togumogu`, `shishu-poribohon`, `prelegant-mall`, `rokomari`, as `.svg`, `.webp`, `.png` or `.jpg`); no logos are invented.
+- Fixed: the `size_guide_open` event was swallowed by a comment in `assets/main.js` and never fired.
+- Not done (needs the owner): customer reviews from Facebook (add real reviews in Admin → Reviews; none are copied or invented), the international price "35 Euro" (the site still shows US$30, see the open questions), a bKash/card payment choice that is saved on the order.
+- Files: `tools/build.py`, `assets/main.js`, `assets/style.css`, generated pages and `assets/products.js`, `README.md`.
 
 ### 2026-11-17: Update on request when the hosting does not allow exec()
 - The real hosting (LiteSpeed) switches PHP's `exec()` off, so the webhook answered 501 and could not start the update. `api/deploy.php` now writes a request file (`~/.babyglee-update-requested`) after a signed push to `main` and answers `{"ok":true,"queued":true}`; where `exec()` works it also starts the update at once (`started`).

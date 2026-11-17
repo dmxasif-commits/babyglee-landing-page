@@ -8,12 +8,17 @@ PRICE, LIST = 1290, 1800
 PRICE_USD = 30  # international price in US dollars, no discount
 WA = "8801974974973"
 PHONE_DISPLAY = "+880 1974-974973"
+PHONE_TEL = "+8801974974973"
+BKASH = "01974974973"   # bKash merchant account (Payment)
+DELIVERY = "2–3 days"   # one delivery promise used everywhere (never "working days")
+# Partner logos: put the files in img/partners/<file>; a partner without a file is not shown (no invented logos)
+PARTNERS = [("ToguMogu", "togumogu"), ("Shishu Poribohon", "shishu-poribohon"), ("Prelegant Mall", "prelegant-mall"), ("Rokomari", "rokomari")]
 
 PRODUCTS = [
-    dict(key="sky-blue", slug="bounce-sky-blue", img="sky-blue-yellow", name="Sky Blue & Yellow", short="Sky Blue", color="#3fb4e8"),
+    dict(key="sky-blue", slug="bounce-sky-blue", img="sky-blue-yellow", name="Multi Color", short="Multi Color", color="#3fb4e8"),
     dict(key="blue-beige", slug="bounce-blue-beige", img="blue-beige", name="Blue & Beige", short="Blue & Beige", color="#3d7fa5"),
-    dict(key="grey", slug="bounce-grey", img="grey", name="Grey", short="Grey", color="#8a9096"),
-    dict(key="navy-brown", slug="bounce-navy-brown", img="navy-brown", name="Navy & Brown", short="Navy & Brown", color="#26335a"),
+    dict(key="grey", slug="bounce-grey", img="grey", name="Charcoal Grey", short="Charcoal Grey", color="#8a9096"),
+    dict(key="navy-brown", slug="bounce-navy-brown", img="navy-brown", name="Dark Navy", short="Dark Navy", color="#26335a"),
     dict(key="black", slug="bounce-black", img="black", name="Black", short="Black", color="#262626"),
 ]
 
@@ -68,14 +73,14 @@ def finder(p, use=False):
       <div class="cm-row"><input type="number" id="{p}Cm" inputmode="decimal" min="8" max="25" step="0.1" placeholder="e.g. 15" autocomplete="off"><span>cm</span></div>
       <label class="wide"><input type="checkbox" id="{p}Wide"> Wide feet or thick socks (one size up)</label>
       <div class="size-res" id="{p}Res"><span>Suggested size</span><b id="{p}Out">EU —</b><em id="{p}Age">Enter a length</em></div>
-      <p class="fine" id="{p}Note">Insole length = foot length + 1 cm. Example: a 15 cm foot needs a 16 cm insole, which is EU 26.</p>
+      <p class="fine" id="{p}Note">Insole length = foot length + 1 cm. Example: a 15 cm foot needs a 16 cm (6.3 in) insole, which is EU 26.</p>
       {'<button class="btn block" type="button" id="szUse" hidden>Select this size</button>' if use else ''}"""
 
 def size_table():
-    rows = "".join(f"<tr data-eu=\"{eu}\"><td><b>EU {eu}</b></td><td>{ins-1:.1f} cm</td><td>{ins:.1f} cm</td><td>{age}</td></tr>" for eu, ins, age in SIZE_CHART)
-    return (f'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Shoe size</th><th>Foot length</th><th>Insole</th><th>Age</th></tr></thead>'
+    rows = "".join(f"<tr data-eu=\"{eu}\"><td><b>EU {eu}</b></td><td>{ins-1:.1f} cm</td><td>{ins:.1f} cm<small>{ins/2.54:.1f} in</small></td><td>{age}</td></tr>" for eu, ins, age in SIZE_CHART)
+    return (f'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Shoe size</th><th>Foot length</th><th>Insole (cm / in)</th><th>Age</th></tr></thead>'
             f'<tbody>{rows}</tbody></table></div>'
-            '<p class="fine">Pick the size whose insole is your child\'s foot length + 1 cm. For wide feet or thick socks, go one size up. Our team also confirms the size with you by call or message before shipping.</p>')
+            '<p class="fine">Pick the size whose insole (shown in cm and inches) is your child\'s foot length + 1 cm. For wide feet or thick socks, go one size up. Our team also confirms the size with you by call or message before shipping.</p>')
 
 # ---------- shared chrome ----------
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2324babc'/%3E"
@@ -113,32 +118,42 @@ def write(name, html):
     (OUT / name).write_text(html, encoding="utf-8")
 
 # ---------- reusable blocks ----------
-TRUST = [("cash", "Cash on Delivery", "Pay when it arrives"), ("truck", "Fast home delivery", "Across Bangladesh"),
-         ("exchange", "72-hour exchange", "Easy size swaps"), ("shield", "Kid-safe materials", "REACH-compliant")]
-
 def trust_strip():
-    return '<section class="trust"><div class="wrap trust-grid">' + "".join(
-        f'<div class="tr">{ic(i)}<div><b>{t}</b><span>{s}</span></div></div>' for i, t, s in TRUST) + f'</div><div class="trust-dlv"><div class="wrap">{ic("truck")}<p>Order today, delivered in <b>3–5 working days</b> across Bangladesh</p></div></div></section>'
+    return f'<section class="trust"><div class="trust-dlv"><div class="wrap">{ic("truck")}<p>Order today, delivered in <b>{DELIVERY}</b> across Bangladesh</p></div></div></section>'
 
-FEATURES = [
- ("layers", "Multi-density sole", "Cushions every step and helps protect growing joints."),
- ("cushion", "Memory-foam insole", "Soft Ortholite-style insole for all-day comfort."),
- ("expand", "Wide toe box", "Shaped around natural foot development."),
- ("bolt", "Fast-lock strap", "Velcro strap with stretch bands, so kids can put them on alone."),
- ("grid", "Anti-slip rubber tread", "Shock-absorbing grip for playgrounds, courts and parks."),
- ("shield", "Safe materials", "Microfiber leather and breathable mesh; REACH, phthalate and azo-dye limits."),
+WHY = [   # (icon-free) label, text, hotspot position on the photo (None = no hotspot)
+ ("Breathable Microfiber", "Keeps little feet comfortable and healthy all day long.", (20, 58)),
+ ("Soft &amp; Comfortable Cushioning", "Protects growing joints during every jump and run.", (74, 24)),
+ ("Easy Front-Lock Strap", "Simple for kids to fasten securely on their own.", (58, 30)),
+ ("Anti-Slip Rubber Sole", "Maximum traction to prevent slips on school floors and playgrounds.", (50, 82)),
+ ("Zero Toxic Chemicals", "100% safe materials tested for sensitive skin.", None),
+ ("European Design", "Crafted with ergonomic standards to protect and support natural foot growth.", None),
 ]
 
-def feature_cards():
-    return '<div class="feat-grid">' + "".join(
-        f'<article class="feat tilt"><span class="ficon">{ic(i)}</span><h3>{t}</h3><p>{d}</p></article>' for i, t, d in FEATURES) + "</div>"
+def why_section():
+    spots = "".join(f'<button class="hs" style="left:{x}%;top:{y}%" data-i="{n}" aria-label="{t.replace("&amp;", "and")}">{n + 1}</button>' for n, (t, d, pos) in enumerate(WHY) if pos for x, y in [pos])
+    items = "".join(f'<li data-i="{n}"><span class="n">{n + 1}</span><div><b>{t}</b><p>{d}</p></div></li>' for n, (t, d, pos) in enumerate(WHY))
+    return f'''<section class="sec alt" id="why"><div class="wrap">
+  <div class="sec-head why-head"><span class="eyebrow">Why Babyglee®</span><h2>They’ll grow out of it anyway, why buy branded?</h2>
+    <p class="why-sub"><b>This small thought quietly harms your baby's growing feet.</b></p>
+    <p>Cheap, unbranded shoes use harmful glues, no engineering, and unsafe materials that can hurt their soft bones and destroy natural foot growth. At Babyglee®, we bring safe, Italian-designed support to protect your child's natural foot growth:</p></div>
+  <div class="anat">
+    <div class="anat-img"><img src="img/blue-beige.webp" alt="Babyglee Bounce sneaker in blue and beige" loading="lazy">{spots}</div>
+    <ol class="anat-list">{items}</ol>
+  </div>
+</div></section>'''
 
 FAQ = [
- ("How does delivery work?", "We deliver to your home across the areas we serve, usually in 3–5 working days. Our team calls or messages you to confirm your size and address before shipping."),
- ("Can I pay on delivery?", "Yes. Cash on Delivery is available on every order."),
- ("What if the size doesn't fit?", "You can exchange within 72 hours of delivery. Delivery and return charges apply. See our Shipping &amp; Returns page."),
- ("Which sizes do you have?", "The Bounce series is available in EU sizes 21 to 36, suitable for roughly ages 1 to 10."),
- ("Are the shoes safe for kids?", "They are made from microfiber synthetic leather and breathable mesh, with chemical limits for REACH, phthalates and azo dyes."),
+ ("What is Babyglee?", "Babyglee is your destination for high-quality, comfortable and stylish shoes for children aged 1 to 10 years. We focus on durable, safe and supportive footwear for all occasions."),
+ ("How do I find the right shoe size?", "Use our size guide: measure your child's foot, type the length in cm and we suggest the size. The insole should be your child's foot length + 1 cm (shown in cm and inches in the size table). For wide feet or thick socks, go one size up. We also confirm the size with you by call or message before shipping."),
+ ("Which sizes do you have?", "The Bounce series comes in EU sizes 21 to 36, suitable for roughly ages 1 to 10."),
+ ("How do I place an order?", "Choose a size for each colour you like, add them to your cart, then check out once with your delivery details. We call you to confirm your sizes and delivery before shipping."),
+ ("Where do you deliver from, and how long does it take?", f"Our head office is in Dhaka, Bangladesh, and we deliver to homes across Bangladesh, inside and outside Dhaka. Delivery takes {DELIVERY} everywhere."),
+ ("What are the shipping costs?", "The delivery charge for inside Dhaka and outside Dhaka is shown at checkout before you confirm your order. Full details are on our Shipping &amp; Returns page."),
+ ("Can I track my order?", "Yes. Once your order is dispatched, the courier gives you a tracking number, and you can use it on the courier's website for live updates on your delivery."),
+ ("Can I pay on delivery? Which payment methods do you accept?", f"Cash on Delivery is available on every order: you pay in taka when your parcel arrives. You can also pay by bKash (merchant account {BKASH}, Payment option). For card payment, please message us on WhatsApp."),
+ ("What is your return and exchange policy?", "You can exchange within 72 hours of receiving your shoes, for items in original condition. Delivery and return charges apply. See our Shipping &amp; Returns page for details."),
+ ("How can I contact Babyglee customer service?", f"Reach us on WhatsApp {PHONE_DISPLAY} (11 AM – 9 PM BST), on Facebook Messenger (Babyglee.Official) or by email at info@babygleebd.com. Our head office in Dhaka, Bangladesh, manages all customer enquiries."),
 ]
 
 def faq_block():
@@ -170,62 +185,72 @@ def simple_page(fname, title, desc, key, eyebrow, h1, body):
     write(fname, h + footer())
 
 def page_shipping():
-    body = '''<p class="fine">Last updated: 2025</p>
-<h2>Shipping destination</h2><p>Babyglee is an international brand, and we currently ship to <b>Bangladesh</b>. Prices are in Bangladeshi taka (৳ BDT).</p>
-<h2>Delivery</h2><p>We deliver to your home across the areas we serve in Bangladesh. After you place an order, our team contacts you by call or message to confirm your child's size and your delivery address, and then ships the parcel.</p>
-<ul><li>Inside Dhaka and outside Dhaka delivery charges are shown at checkout before you confirm.</li><li>Delivery usually takes <b>3–5 working days</b> after we confirm your order, depending on your location.</li><li>Please keep your phone available so the courier can reach you.</li></ul>
-<h2>Payment</h2><p>Cash on Delivery is available on all orders: you pay the courier when you receive your parcel. Please check the parcel before paying.</p>
-<h2>Exchange</h2><p>If the size doesn't fit, you can request an exchange within <b>72 hours</b> of delivery.</p>
-<ul><li>Shoes must be unused, clean and in their original packaging.</li><li>Delivery and return charges apply to exchanges.</li><li>Contact us by WhatsApp or phone with your order details to start an exchange.</li></ul>
-<h2>Damaged or wrong item</h2><p>If your parcel arrives damaged or with the wrong item, contact us within 72 hours with photos and your order details, and we will make it right.</p>
-<h2>Contact</h2><p>WhatsApp / phone: +880 1974-974973 · Email: info@babygleebd.com</p>'''
-    simple_page("shipping-returns.html", "Shipping & Returns", "Babyglee delivery, Cash on Delivery and 72-hour exchange policy.", "shipping", "Policy", "Shipping to Bangladesh", body)
+    body = f'''<h2>Shipping Policy</h2><p>At Babyglee, we ensure quick, reliable and hassle-free delivery for your child's new shoes. Prices are in Bangladeshi taka (৳ BDT).</p>
+<h3>How we deliver</h3>
+<ul><li><b>Fast processing:</b> orders are processed from our Dhaka, Bangladesh office within 1 business day. Our team calls or messages you to confirm your child's size and your delivery address before shipping.</li>
+<li><b>Delivery time:</b> {DELIVERY} everywhere in Bangladesh, to your home.</li>
+<li><b>Clear costs:</b> the delivery charge for inside Dhaka and outside Dhaka is shown at checkout before you confirm your order.</li>
+<li><b>Easy tracking:</b> once your order is dispatched, the courier gives you a tracking number for live updates.</li>
+<li>Please keep your phone available so the courier can reach you.</li></ul>
+<h2>Payment</h2><p>Cash on Delivery is available on every order: you pay the courier when you receive your parcel. Please check the parcel before paying. You can also pay by bKash (merchant account {BKASH}, Payment option). For card payment, please message us on WhatsApp.</p>
+<h2>Return &amp; Exchange Policy</h2><p>Your satisfaction is key! We make exchanges simple at Babyglee.</p>
+<ul><li><b>Eligibility:</b> exchange items within 72 hours of receipt. Items must be unworn, unwashed, with all tags and in the original packaging.</li>
+<li><b>How to start:</b> message us on WhatsApp or Facebook Messenger, or email info@babygleebd.com with your order number.</li>
+<li><b>Charges:</b> delivery and return charges apply to exchanges, unless the error is ours.</li>
+<li><b>Refunds:</b> where a refund applies, it is issued to your original payment method within 7–10 business days after inspection.</li>
+<li><b>Damaged or defective:</b> contact us immediately with photos and your order details for a quick resolution.</li></ul>
+<h2>Contact</h2><p>WhatsApp / phone: {PHONE_DISPLAY} (11 AM – 9 PM BST) · Email: info@babygleebd.com</p>'''
+    simple_page("shipping-returns.html", "Shipping & Returns", "Babyglee delivery, payment and 72-hour exchange policy.", "shipping", "Policy", "Shipping &amp; returns policy", body)
 
 def page_privacy():
-    body = '''<p class="fine">Last updated: 2025</p>
-<p>This policy explains how Babyglee ("we", "us") collects and uses your information when you visit babygleebd.com or place an order.</p>
-<h2>Information we collect</h2><ul><li><b>Order details:</b> your name, mobile number, delivery address, chosen product, size and quantity.</li><li><b>Unfinished orders:</b> if you start filling in the checkout form but do not finish, we may save the details you entered (such as your mobile number and chosen product) and contact you to help complete your order.</li><li><b>Messages:</b> anything you send us by WhatsApp, phone or email.</li><li><b>Usage data:</b> basic, anonymous information about how the site is used (pages visited, device type), which may be collected through cookies and analytics or advertising tools such as Meta Pixel.</li></ul>
-<h2>How we use it</h2><ul><li>To confirm, deliver and support your order, including calling or messaging you about size and delivery.</li><li>To handle exchanges and customer service requests.</li><li>To understand how our site and ads perform and to improve them.</li></ul>
-<h2>Sharing</h2><p>We share your name, phone number and address only with courier and delivery partners so your parcel can reach you. We do not sell your personal information.</p>
+    body = '''<p><b>Your privacy, our priority. Shop with confidence!</b></p>
+<p>At Babyglee, your trust means everything. This guide explains how we handle your information so your shopping experience is secure and delightful.</p>
+<h2>What we collect</h2><ul><li><b>From you:</b> your name, mobile number, delivery address and email (if you give it) for orders, the products and sizes you choose, and anything you send us by WhatsApp, phone or email.</li><li><b>Unfinished orders:</b> if you start filling in the checkout form but do not finish, we may save the details you entered (such as your mobile number and chosen product) and contact you to help complete your order.</li><li><b>Automatically:</b> how you use our site (like pages viewed and device type), through cookies and analytics or advertising tools such as Meta Pixel, to improve your experience.</li></ul>
+<h2>How we use it</h2><ul><li>To process, confirm and deliver your orders, including calling or messaging you about size and delivery.</li><li>To handle exchanges and customer service requests.</li><li>To understand how our site and ads perform, and to show you shoes you will love.</li><li>To keep you updated on offers (you can opt out any time).</li><li>To ensure security and prevent fraud.</li></ul>
+<h2>How we share it</h2><ul><li>With trusted partners (such as couriers and payment providers) who help us serve you. They must protect your data.</li><li>When required by law.</li></ul><p>We do not sell your personal information.</p>
 <h2>Cookies &amp; advertising</h2><p>We may use cookies and similar technologies, including the Meta Pixel, to measure ad performance and show relevant ads. You can control cookies in your browser settings.</p>
-<h2>Data retention &amp; security</h2><p>We keep order information for as long as needed to fulfil your order and meet legal and accounting requirements. We take reasonable steps to protect your information.</p>
-<h2>Your choices</h2><p>You may ask us to access, correct or delete your personal information by contacting us. We will respond as soon as we reasonably can.</p>
-<h2>Children</h2><p>Our products are for children, but our website is intended for parents and guardians. We do not knowingly collect information from children.</p>
-<h2>Contact</h2><p>Babyglee, Pallabi, Mirpur 12, Dhaka · info@babygleebd.com · +880 1974-974973</p>'''
+<h2>You are in control</h2><ul><li>You can access, correct, delete or limit your data. Just ask us.</li><li>We use strong security measures to protect your information.</li><li>We keep your data only as long as needed to fulfil your order and meet legal and accounting requirements.</li><li>We do not knowingly collect data from children under 13. Our website is intended for parents and guardians.</li></ul>
+<h2>Questions? We are happy to help</h2><p>Email: info@babygleebd.com · WhatsApp: +880 1974-974973 · Babyglee, Pallabi, Mirpur 12, Dhaka</p>'''
     simple_page("privacy.html", "Privacy Policy", "How Babyglee collects, uses and protects your information.", "privacy", "Policy", "Privacy policy", body)
 
 def page_terms():
-    body = '''<p class="fine">Last updated: 2025</p>
-<h2>Using this website</h2><p>By using babygleebd.com or placing an order, you agree to these terms. Please read them with our Privacy Policy and Shipping &amp; Returns policy.</p>
-<h2>Products &amp; prices</h2><p>We try to show colours and details accurately, but screens differ slightly. Prices are in Bangladeshi Taka (BDT) and may change without notice. The price shown at the time you place your order applies. USD prices are shown for reference only; orders are charged in BDT.</p>
-<h2>Orders</h2><ul><li>An order is confirmed after our team contacts you to verify your details and size.</li><li>We may cancel an order if details cannot be verified or an item is unavailable.</li><li>Please provide a correct phone number and address so delivery is not delayed.</li></ul>
-<h2>Payment</h2><p>Payment is by Cash on Delivery unless we tell you otherwise.</p>
-<h2>Exchanges</h2><p>Exchanges are handled under our <a href="shipping-returns.html">Shipping &amp; Returns</a> policy (72 hours from delivery; delivery and return charges apply).</p>
-<h2>Intellectual property</h2><p>Babyglee® is a registered trademark in Bangladesh (Reg. No. 210926, Class 25). Website content, images and designs belong to Babyglee and may not be copied without permission.</p>
-<h2>Liability</h2><p>To the extent permitted by law, we are not liable for indirect or consequential loss arising from use of this website or our products. Nothing limits your rights under applicable consumer law.</p>
-<h2>Governing law</h2><p>These terms are governed by the laws of Bangladesh.</p>
-<h2>Contact</h2><p>Babyglee, Pallabi, Mirpur 12, Dhaka · info@babygleebd.com · +880 1974-974973</p>'''
+    body = '''<p>Welcome to Babyglee. By using our services (website, products), you agree to these Terms and our <a href="privacy.html">Privacy Policy</a>. If you do not agree, please do not use our services.</p>
+<h2>Key points</h2>
+<ul><li><b>Acceptance:</b> using Babyglee means you are 16+ or supervised by a guardian who agrees to these Terms. This is a binding agreement.</li>
+<li><b>Services:</b> we offer children's shoes and related information. We may change or discontinue services at any time.</li>
+<li><b>Conduct:</b> use our services lawfully. No harmful, fraudulent, offensive or infringing activities. Do not interfere with the site or collect data without permission.</li>
+<li><b>Privacy:</b> your privacy is vital. See our Privacy Policy for details.</li>
+<li><b>Intellectual property:</b> all Babyglee content is ours; do not reproduce it without permission. Babyglee® is a registered trademark in Bangladesh (Reg. No. 210926, Class 25). Content you submit grants us a licence to use it.</li></ul>
+<h2>Products &amp; sales</h2>
+<ul><li><b>Information:</b> we strive for accuracy (including colours, which can differ slightly on screens) but do not guarantee error-free content.</li>
+<li><b>Pricing:</b> prices are in Bangladeshi Taka (BDT) and are subject to change; the price shown when you order applies. We can correct errors or cancel orders. USD or EUR prices are shown for reference only; orders are charged in BDT.</li>
+<li><b>Orders:</b> an order is confirmed after our team contacts you to verify your details and size. Order confirmation does not guarantee acceptance; we can decline orders we cannot verify or fulfil. Please give a correct phone number and address.</li>
+<li><b>Payment:</b> Cash on Delivery, bKash or card (via WhatsApp), as described on our <a href="shipping-returns.html">Shipping &amp; Returns</a> page.</li>
+<li><b>Returns and shipping:</b> see our <a href="shipping-returns.html">Shipping &amp; Returns</a> policy (72 hours from delivery; delivery and return charges apply).</li></ul>
+<h2>Disclaimers &amp; liability</h2><p>Services are provided "as is", without warranties. To the extent permitted by law, Babyglee is not liable for damages from using our services. Nothing limits your rights under applicable consumer law.</p>
+<h2>Indemnification</h2><p>You agree to protect Babyglee from claims arising from your violation of these Terms or misuse of our services.</p>
+<h2>Governing law</h2><p>The laws of Bangladesh govern these Terms. Disputes are resolved through negotiation or in the courts of Dhaka.</p>
+<h2>Changes to these Terms</h2><p>We may update these Terms; continued use means you accept the new Terms.</p>
+<h2>Contact</h2><p>Email: info@babygleebd.com · WhatsApp: +880 1974-974973 · Babyglee, Pallabi, Mirpur 12, Dhaka</p>'''
     simple_page("terms.html", "Terms & Conditions", "Terms and conditions for using the Babyglee website and placing orders.", "terms", "Policy", "Terms &amp; conditions", body)
 
 
 # ======================================================================= landing site
-TRUST_ITEMS = TRUST
-
 def header(active="landing"):
     landing = active == "landing"
-    links = ('<a href="#shop">Shop</a><a href="#why">Why Babyglee</a><a href="#size">Size guide</a><a href="#reviews" id="navReviews" hidden>Reviews</a><a href="#faq">FAQ</a>'
-             if landing else '<a href="index.html#shop">Shop</a><a href="index.html#why">Why Babyglee</a><a href="index.html#faq">FAQ</a>')
-    return f"""<div class="topbar"><div class="wrap"><span>{ic("pin")} Shipping to Bangladesh</span><span>Designed for European markets</span><span>{ic("cash")} Cash on Delivery</span><span>{ic("exchange")} 72-hour exchange</span></div></div>
+    links = ('<a href="#shop">Shop</a><a href="#why">Why Babyglee®</a><a href="#size">Size Guide</a><a href="#reviews" id="navReviews" hidden>Reviews</a><a href="#faq">FAQ</a>'
+             if landing else '<a href="index.html#shop">Shop</a><a href="index.html#why">Why Babyglee®</a><a href="index.html#faq">FAQ</a>')
+    return f"""<div class="topbar"><div class="wrap"><span>{ic("truck")} Available in Bangladesh</span><span>Designed for European markets</span><span>{ic("cash")} Cash on Delivery</span><span>{ic("exchange")} 72-Hour Easy Exchanges</span><a class="tb-tel" href="tel:{PHONE_TEL}">{ic("phone")} (+880) 1974974973</a></div></div>
 <header class="hdr"><div class="wrap hdr-in">
   <a class="brand" href="index.html" aria-label="Babyglee home"><img src="img/logo.webp" alt="Babyglee — Because we love them!" width="117" height="87"></a>
-  <nav class="nav" id="nav" aria-label="Main">{links}<a class="btn sm nav-cta" href="{'#shop' if landing else 'index.html#shop'}">Shop now</a></nav>
+  <nav class="nav" id="nav" aria-label="Main">{links}<a class="btn sm nav-cta" href="{'#shop' if landing else 'index.html#shop'}">Shop Now</a></nav>
   <div class="ship" id="ship">
     <button class="ship-btn" id="shipBtn" aria-expanded="false" aria-controls="shipMenu"><span class="flag-bd" role="img" aria-label="Bangladesh flag"></span><span class="ship-t"><small>Shipping to</small>Bangladesh<span class="cur"> · ৳ BDT</span></span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
     <div class="ship-menu" id="shipMenu" hidden>
       <p class="sm-h">Shipping destination</p>
       <div class="sm-opt on"><span class="flag-bd" role="img" aria-label="Bangladesh flag"></span><b>Bangladesh</b>{ic("check")}</div>
       <p class="sm-n">Prices are in Bangladeshi taka (৳ BDT). The international price in USD is shown for reference.</p>
-      <ul class="sm-l"><li>{ic("truck")} Home delivery</li><li>{ic("cash")} Cash on Delivery</li><li>{ic("exchange")} 72-hour exchange</li></ul>
+      <ul class="sm-l"><li>{ic("truck")} Home delivery</li><li>{ic("cash")} Cash on Delivery</li><li>{ic("exchange")} 72-hour easy exchange</li></ul>
     </div>
   </div>
   <a class="cart-btn" href="checkout.html" aria-label="Cart and checkout">{ic("bag")}<i class="js-cart-count">0</i></a>
@@ -256,6 +281,18 @@ def footer(landing=False):
     <div class="cs-foot" id="csFoot"><div class="cs-tot"><span id="csCount">0 pairs</span><b id="csTotal">৳0</b></div><a class="btn block" id="csGo" href="checkout.html">Checkout</a><small>Delivery charge is added at checkout. Pay on delivery.</small></div>
   </section>
 </div>
+<div class="sheet-wrap" id="addedPop" hidden>
+  <div class="sheet-scrim" data-close></div>
+  <section class="sheet added-pop" role="dialog" aria-modal="true" aria-labelledby="apTitle">
+    <header><h3 id="apTitle">{ic("check")} Added to your cart</h3><button class="icon-btn" type="button" data-close aria-label="Close">{ic("close")}</button></header>
+    <div class="sheet-body">
+      <div class="ap-item"><img id="apImg" src="img/logo.webp" alt="" width="84" height="72"><div><b id="apName"></b><span id="apMeta"></span></div></div>
+      <div class="ap-sum"><span id="apCount"></span><b id="apTotal"></b></div>
+      <div class="ap-btns"><button class="btn ghost" type="button" data-close>Continue shopping</button><a class="btn" id="apGo" href="checkout.html">Checkout</a></div>
+      <small class="ap-note">Delivery charge is added at checkout. {DELIVERY} delivery. Pay on delivery.</small>
+    </div>
+  </section>
+</div>
 <div class="sheet-wrap" id="shotBox" hidden>
   <div class="sheet-scrim" data-close></div>
   <section class="sheet shot" role="dialog" aria-modal="true" aria-label="Customer review">
@@ -272,18 +309,19 @@ def footer(landing=False):
   <div class="wrap ftr-grid">
     <div class="ftr-brand">
       <img src="img/logo.webp" alt="Babyglee" width="117" height="87">
-      <p>An international kids' sneaker brand, designed for European markets and now shipping to Bangladesh.</p>
+      <p>An international kids' sneaker brand, designed for European markets and available in Bangladesh.</p>
       <div class="soc"><a href="https://facebook.com/Babyglee.Official" target="_blank" rel="noopener" aria-label="Babyglee on Facebook">{ic("facebook")}</a>
       <a href="https://wa.me/{WA}" target="_blank" rel="noopener" aria-label="WhatsApp">{ic("whatsapp")}</a></div>
     </div>
-    <div><h4>Shop</h4><a href="index.html#shop">The Bounce series</a><a href="index.html#size">Size guide</a><a href="index.html#faq">FAQ</a></div>
-    <div><h4>Company</h4><a href="shipping-returns.html">Shipping &amp; returns</a><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms &amp; conditions</a></div>
-    <div class="ftr-contact"><h4>Get in touch</h4>
+    <div><h4>Customer Care</h4><a href="shipping-returns.html">Shipping &amp; returns</a><a href="index.html#faq">FAQ</a><a href="index.html#size">Size guide</a></div>
+    <div><h4>Shop</h4><a href="index.html#shop">The Bounce series</a><a href="index.html#why">Why Babyglee®</a></div>
+    <div><h4>Company</h4><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms &amp; conditions</a></div>
+    <div class="ftr-contact"><h4>Reach Us</h4>
       <a href="https://wa.me/{WA}">{ic("whatsapp")} {PHONE_DISPLAY}</a>
       <a href="mailto:info@babygleebd.com">{ic("mail")} info@babygleebd.com</a>
       <span class="ln">{ic("pin")} Dhaka office: Pallabi, Mirpur 12</span>
       <span class="ln">{ic("pin")} EU office: Pontedera, Italy</span>
-      <span class="ln">{ic("clock")} 9 AM – 7 PM (BST)</span></div>
+      <span class="ln">{ic("clock")} 11 AM – 9 PM (BST)</span></div>
   </div>
   <div class="wrap ftr-bottom"><span>© 2025 Babyglee® — A concern of AMC Knit Composite Ltd.</span><span>Trademark Reg. No. 210926 (Class 25) · Trade licence TRAD/DNCC/090476/2022</span></div>
 </footer>
@@ -294,29 +332,28 @@ def footer(landing=False):
 </html>
 """
 
-FAQ = [
- ("How do I order?", "Choose a size for each colour you like, add them to your cart, then check out once with your delivery details. We call you to confirm your sizes and delivery before shipping."),
- ("Can I buy more than one pair or more than one colour?", "Yes. Add as many pairs, colours and sizes as you like to the cart and pay for them in a single checkout."),
- ("Can I pay on delivery?", "Yes. Cash on Delivery is available on every order. You pay in taka when your parcel arrives."),
- ("What if the size doesn't fit?", "You can exchange within 72 hours of delivery. Delivery and return charges apply. See our Shipping &amp; Returns page."),
- ("Which sizes do you have?", "The Bounce series comes in EU sizes 21 to 36, suitable for roughly ages 1 to 10. Use the size guide to match your child's foot length."),
- ("Are the shoes safe for kids?", "They are made from microfiber synthetic leather and breathable mesh, with chemical limits for REACH, phthalates and azo dyes."),
- ("Where do you deliver?", "We currently deliver to homes across Bangladesh, inside and outside Dhaka, usually in 3–5 working days."),
-]
+def partners_block():
+    """Partner logos shown only for files that exist in img/partners/ (nothing is invented)."""
+    items = []
+    for name, f in PARTNERS:
+        for ext in ("svg", "webp", "png", "jpg"):
+            if (OUT / "img" / "partners" / f"{f}.{ext}").exists():
+                items.append(f'<li><img src="img/partners/{f}.{ext}" alt="{name}" loading="lazy"></li>'); break
+    if not items: return ""
+    return f'<section class="sec partners" id="partners"><div class="wrap"><div class="sec-head"><span class="eyebrow">Our partners</span><h2>Find us with trusted partners</h2></div><ul class="plogos">{"".join(items)}</ul></div></section>\n'
 
 def page_index():
-    h = head("Babyglee — International Kids' Sneakers, Shipping to Bangladesh", "International kids' sneaker brand designed for European markets, now shipping to Bangladesh. Five colours, EU sizes 21–36, Cash on Delivery and 72-hour exchange.", "landing", extra=faq_ld())
+    h = head("Babyglee® — International Kids' Sneakers, Available in Bangladesh", "International kids' sneaker brand designed for European markets and available in Bangladesh. Five colours, EU sizes 21–36, Cash on Delivery and 72-hour easy exchange.", "landing", extra=faq_ld())
     h += header("landing")
-    steps = [("1", "Choose", "Pick your colours and sizes."), ("2", "Check out", "Enter your details once. Pay on delivery."), ("3", "We deliver", "We call to confirm, then deliver to your door.")]
+    steps = [("1", "Choose", "Pick your favorite style and size."), ("2", "Checkout", "Enter your address with Cash on Delivery."), ("3", "Get Delivered", f"Receive your package right at your doorstep in {DELIVERY}.")]
     h += f"""<section class="hero" id="top">
   <div class="blob b1"></div><div class="blob b2"></div>
   <div class="wrap hero-in">
     <div class="hero-copy">
-      <span class="pill">International brand · Shipping to Bangladesh</span>
-      <h1>Happy feet.<br><span class="grad">Bouncy steps.</span></h1>
-      <p class="lead">Kids' sneakers designed for European markets and now shipping to Bangladesh: memory-foam insole, wide toe box and an anti-slip sole that parents can trust.</p>
+      <h1>Designed for active,<br><span class="grad">healthy feet development.</span></h1>
+      <p class="lead">Many kids wear generic sneakers that harm their developing feet. Babyglee® offers premium sneakers at an accessible price so your child can play comfortably and grow healthy.</p>
       <div class="cta"><a class="btn lg" href="#shop">Choose your pair</a><button class="btn lg ghost" type="button" data-open-size>Find my kid's size</button></div>
-      <div class="price-tag"><s>{fmt(LIST)}</s><b>{fmt(PRICE)}</b><span>Cash on Delivery</span></div>
+      <div class="price-tag"><s>{fmt(LIST)}</s><b>{fmt(PRICE)}</b><span>(Cash on Delivery)</span></div>
       <p class="usd-note">International price: <b>US${PRICE_USD}</b></p>
     </div>
     <div class="stage" id="stage">
@@ -324,37 +361,20 @@ def page_index():
       <img class="shoe s-main" data-depth="46" src="img/sky-blue-yellow.webp" alt="Babyglee Bounce sneakers in sky blue and yellow" fetchpriority="high">
       <img class="shoe s-side" data-depth="80" src="img/grey.webp" alt="Babyglee Bounce sneakers in grey" loading="lazy">
       <div class="chip c1">{ic("bolt")} Fast-lock strap</div>
-      <div class="chip c2">{ic("cushion")} Memory-foam insole</div>
+      <div class="chip c2">{ic("cushion")} Soft cushioning</div>
     </div>
   </div>
 </section>
 {trust_strip()}
 <section class="sec" id="shop"><div class="wrap">
-  <div class="sec-head"><span class="eyebrow">The Bounce series</span><h2>Pick your pairs</h2><p>Choose a size for each colour you like and add it to your cart. Add as many pairs as you want, then check out once.</p></div>
+  <div class="sec-head"><span class="eyebrow">The Bounce series</span><h2>Pick your pairs</h2><p>Choose your size, fill your cart, and check out all at once.</p></div>
   <div class="pgrid" id="grid" data-list="landing"><p class="empty-note">Loading the collection…</p></div>
   <noscript><p class="empty-note">Please turn on JavaScript to choose your pairs, or order on WhatsApp.</p></noscript>
 </div></section>
-<section class="sec alt" id="why"><div class="wrap">
-  <div class="sec-head"><span class="eyebrow">Why parents choose Babyglee</span><h2>Built around growing feet</h2><p>Little feet are busy feet. They run, climb, jump and grow fast, so the right sneaker needs room to move, grip on every surface and cushioning that keeps them comfortable all day.</p></div>
-  {feature_cards()}
-</div></section>
-<section class="sec" id="anatomy"><div class="wrap">
-  <div class="sec-head"><span class="eyebrow">Inside every Bounce</span><h2>The details that matter</h2><p>Tap a number to see what each part does.</p></div>
-  <div class="anat">
-    <div class="anat-img"><img src="img/blue-beige.webp" alt="Babyglee Bounce sneaker in blue and beige" loading="lazy">
-      <button class="hs" style="left:58%;top:30%" data-i="0" aria-label="Fast-lock strap">1</button><button class="hs" style="left:20%;top:58%" data-i="1" aria-label="Breathable upper">2</button>
-      <button class="hs" style="left:74%;top:24%" data-i="2" aria-label="Memory-foam insole">3</button><button class="hs" style="left:50%;top:82%" data-i="3" aria-label="Anti-slip sole">4</button></div>
-    <ol class="anat-list">
-      <li data-i="0"><span class="n">1</span><div><b>Fast-lock strap</b><p>A velcro strap with stretch bands, so kids can put their shoes on by themselves.</p></div></li>
-      <li data-i="1"><span class="n">2</span><div><b>Breathable upper</b><p>Soft microfiber synthetic leather with breathable mesh keeps feet comfortable.</p></div></li>
-      <li data-i="2"><span class="n">3</span><div><b>Memory-foam insole</b><p>A cushioned insole and a wide toe box leave room for natural foot movement.</p></div></li>
-      <li data-i="3"><span class="n">4</span><div><b>Anti-slip, shock-absorbing sole</b><p>A multi-density rubber sole grips playgrounds and courts and softens every step.</p></div></li>
-    </ol>
-  </div>
-</div></section>
+{why_section()}
 <section class="sec alt" id="size"><div class="wrap size-box">
   <div>
-    <span class="eyebrow">Size guide</span><h2>Find the right size in seconds</h2>
+    <span class="eyebrow">Size Guide</span><h2>Find the right size in seconds</h2>
     {finder("fs")}
   </div>
   <div class="size-tbl">{size_table()}</div>
@@ -364,12 +384,13 @@ def page_index():
   <div class="rv-track" id="rvTrack"></div>
 </div></section>
 <section class="sec alt" id="how"><div class="wrap">
-  <div class="sec-head"><span class="eyebrow">How it works</span><h2>Order in three steps</h2></div>
+  <div class="sec-head"><span class="eyebrow">How it works</span><h2>Three-Step Order Process</h2></div>
   <div class="steps3">{"".join(f'<div class="st3 tilt"><span class="n">{n}</span><h3>{t}</h3><p>{d}</p></div>' for n, t, d in steps)}</div>
-  <p class="center fine">{ic("exchange")} Wrong size? Exchange within 72 hours of delivery (delivery and return charges apply).</p>
+  <p class="center fine pay-line">{ic("cash")} Pay your way: Cash on Delivery · bKash (merchant {BKASH}) · Card (message us on WhatsApp)</p>
+  <p class="center fine">{ic("exchange")} Wrong size? Easy exchange within 72 hours of delivery (delivery and return charges apply).</p>
 </div></section>
-<section class="sec" id="faq"><div class="wrap narrow"><div class="sec-head"><span class="eyebrow">FAQ</span><h2>Quick answers</h2></div>{faq_block()}</div></section>
-<section class="cta-band"><div class="wrap"><h2>Ready to bounce?</h2><p>Free to look, easy to order, pay when it arrives.</p>
+<section class="sec" id="faq"><div class="wrap narrow"><div class="sec-head"><span class="eyebrow">FAQ</span><h2>Got Questions? We've Got Answers.</h2></div>{faq_block()}</div></section>
+{partners_block()}<section class="cta-band"><div class="wrap"><h2>Ready for Healthy Growing Feet?</h2><p>Shop our European-standard ergonomic sneakers today.</p>
   <div class="cta center"><a class="btn lg" href="#shop">Choose your pair</a><a class="btn lg wa" href="https://wa.me/{WA}" target="_blank" rel="noopener">{ic("whatsapp")} Ask on WhatsApp</a></div></div></section>
 """
     h += footer(landing=True)
@@ -385,7 +406,8 @@ def page_checkout():
     <form id="coForm" class="co-form" novalidate>
       <h3 class="sum-t">Delivery details</h3>
       {contact_fields()}
-      <fieldset class="fld"><legend>Payment</legend><div class="opt on-static"><span><b>Cash on Delivery</b><em>Pay in BDT when your parcel arrives</em></span></div></fieldset>
+      <fieldset class="fld"><legend>Payment</legend><div class="opt on-static"><span><b>Cash on Delivery</b><em>Pay in BDT when your parcel arrives</em></span></div>
+        <p class="fine pay-more">Prefer to pay online? bKash: merchant account <b>{BKASH}</b> (Payment option). Card: please message us on <a href="https://wa.me/{WA}" target="_blank" rel="noopener">WhatsApp</a>. Tell our team when we call to confirm your order.</p></fieldset>
       <p class="err-box" id="sendErr" role="alert" hidden>Sorry, we couldn't place your order. Please check your connection and try again, or call us on {PHONE_DISPLAY}.</p>
       <div class="co-submit"><button class="btn lg block" type="submit" id="submitBtn">Place order</button></div>
       <p class="fine center">{ic("shield")} Your details are used only to deliver your order.</p>
@@ -410,9 +432,9 @@ def page_thanks():
     <span class="okc">{ic("check")}</span><h1>Thank you! Your order is placed.</h1>
     <p>Order ID <b id="oid"></b></p>
     <dl class="recap"><div><dt>Items</dt><dd><ul class="ritems" id="rItems"></ul></dd></div><div><dt>Deliver to</dt><dd id="rA"></dd></div><div class="tot"><dt>Pay on delivery</dt><dd id="rT"></dd></div></dl>
-    <ol class="next"><li><b>We call you</b><span>Our team calls <b id="rPh"></b> to confirm your sizes and address.</span></li><li><b>We deliver</b><span>Your parcel is sent to your door.</span></li><li><b>You pay</b><span>Cash on Delivery, in taka, when it arrives.</span></li></ol>
+    <ol class="next"><li><b>We call you</b><span>Our team calls <b id="rPh"></b> to confirm your sizes and address.</span></li><li><b>We deliver</b><span>Your parcel reaches your door in {DELIVERY}.</span></li><li><b>You pay</b><span>Cash on Delivery, in taka, when it arrives.</span></li></ol>
     <p class="demo" id="demoNote" hidden>Demo mode: ordering is not connected yet, so this order was not sent to the Babyglee team.</p>
-    <p class="fine">Need help? <a href="https://wa.me/{WA}" target="_blank" rel="noopener">Chat on WhatsApp</a> or call {PHONE_DISPLAY}. Wrong size? Exchange within 72 hours.</p>
+    <p class="fine">Need help? <a href="https://wa.me/{WA}" target="_blank" rel="noopener">Chat on WhatsApp</a> or call {PHONE_DISPLAY}. Wrong size? Easy exchange within 72 hours.</p>
     <a class="btn ghost" href="index.html#shop">Order another pair</a>
   </div>
   <div class="empty-state" id="noOrder" hidden><span class="okc">{ic("bag")}</span><h3>No recent order found</h3><p>If you just placed an order, our team will call you. Otherwise you can choose your pairs here.</p><a class="btn" href="index.html#shop">Choose your pair</a></div>
