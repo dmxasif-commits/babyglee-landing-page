@@ -10,7 +10,7 @@ WA = "8801974974973"
 PHONE_DISPLAY = "+880 1974-974973"
 PHONE_TEL = "+8801974974973"
 BKASH = "01974974973"   # bKash merchant account (Payment)
-DELIVERY = "2–3 days"   # one delivery promise used everywhere (never "working days")
+DELIVERY = "1–3 days"   # one delivery promise used everywhere (never "working days")
 # Partner logos: put the files in img/partners/<file>; a partner without a file is not shown (no invented logos)
 PARTNERS = [("ToguMogu", "togumogu"), ("Shishu Poribohon", "shishu-poribohon"), ("Prelegant Mall", "prelegant-mall"), ("Rokomari", "rokomari")]
 
@@ -338,9 +338,10 @@ def partners_block():
     for name, f in PARTNERS:
         for ext in ("svg", "webp", "png", "jpg"):
             if (OUT / "img" / "partners" / f"{f}.{ext}").exists():
-                items.append(f'<li><img src="img/partners/{f}.{ext}" alt="{name}" loading="lazy"></li>'); break
+                items.append(f'<li><img src="img/partners/{f}.{ext}" alt="{name}" loading="lazy" draggable="false"></li>'); break
     if not items: return ""
-    return f'<section class="sec partners" id="partners"><div class="wrap"><div class="sec-head"><span class="eyebrow">Our partners</span><h2>Find us with trusted partners</h2></div><ul class="plogos">{"".join(items)}</ul></div></section>\n'
+    # small strip under the reviews: logos only, not links, kept in their own proportions
+    return f'<section class="partners" id="partners" aria-labelledby="ptTitle"><div class="wrap"><h2 id="ptTitle">Our Official Partners</h2><ul class="plogos">{"".join(items)}</ul></div></section>\n'
 
 def page_index():
     h = head("Babyglee® — International Kids' Sneakers, Available in Bangladesh", "International kids' sneaker brand designed for European markets and available in Bangladesh. Five colours, EU sizes 21–36, Cash on Delivery and 72-hour easy exchange.", "landing", extra=faq_ld())
@@ -383,14 +384,14 @@ def page_index():
   <div class="sec-head"><span class="eyebrow">Reviews</span><h2>What parents say</h2><p id="rvSum"></p></div>
   <div class="rv-track" id="rvTrack"></div>
 </div></section>
-<section class="sec alt" id="how"><div class="wrap">
+{partners_block()}<section class="sec alt" id="how"><div class="wrap">
   <div class="sec-head"><span class="eyebrow">How it works</span><h2>Three-Step Order Process</h2></div>
   <div class="steps3">{"".join(f'<div class="st3 tilt"><span class="n">{n}</span><h3>{t}</h3><p>{d}</p></div>' for n, t, d in steps)}</div>
   <p class="center fine pay-line">{ic("cash")} Pay your way: Cash on Delivery · bKash (merchant {BKASH})</p>
   <p class="center fine">{ic("exchange")} Wrong size? Easy exchange within 72 hours of delivery (delivery and return charges apply).</p>
 </div></section>
 <section class="sec" id="faq"><div class="wrap narrow"><div class="sec-head"><span class="eyebrow">FAQ</span><h2>Got Questions? We've Got Answers.</h2></div>{faq_block()}</div></section>
-{partners_block()}<section class="cta-band"><div class="wrap"><h2>Ready for Healthy Growing Feet?</h2><p>Shop our European-standard ergonomic sneakers today.</p>
+<section class="cta-band"><div class="wrap"><h2>Ready for Healthy Growing Feet?</h2><p>Shop our European-standard ergonomic sneakers today.</p>
   <div class="cta center"><a class="btn lg" href="#shop">Choose your pair</a><a class="btn lg wa" href="https://wa.me/{WA}" target="_blank" rel="noopener">{ic("whatsapp")} Ask on WhatsApp</a></div></div></section>
 """
     h += footer(landing=True)

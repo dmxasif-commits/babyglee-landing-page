@@ -29,6 +29,14 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-18: Delivery "1–3 days"; "Our Official Partners" logo strip under the reviews
+- Backup of the live site before the changes: `backups/site-2026-11-18-before-partners-delivery.zip`.
+- **Delivery timeframe is now "1–3 days"** everywhere (it comes from one constant, `DELIVERY` in `tools/build.py`): delivery line under the hero, order steps, FAQ, Shipping & Returns, thank-you page and the "Added to your cart" pop-up. Still no "working days".
+- **"Our Official Partners" section** directly below the reviews section ("What parents say"): a short heading and four logos (ToguMogu, Shishu Poribohon, Prelegant Mall, Rokomari) supplied by the owner. The logos are not links and cannot be clicked (no `<a>`, pointer events off, not draggable) and are shown in their own proportions (checked: displayed ratio = natural ratio for all four). Two columns on phones, four on larger screens. The section is separate from the reviews, so it shows even while the reviews section is hidden.
+- **Logo files** (`img/partners/togumogu.webp`, `shishu-poribohon.webp`, `prelegant-mall.webp`, `rokomari.webp`): the supplied pictures with their flat background removed (transparent) and cropped to the logo, at most 480 px wide (5–28 KB each). The section is built only from the files that exist in `img/partners/`, so a logo can be changed by replacing its file.
+- Tests (browser, 360, 390 and 1280 px, with and without reviews): heading text, the section sits right after `#reviews`, 0 links, all four images loaded with unchanged aspect ratios, no horizontal scroll, no console errors.
+- Files: `tools/build.py`, `assets/style.css`, `img/partners/*.webp`, generated pages, `README.md`.
+
 ### 2026-11-18: Thank-you page: customer data in the dataLayer before GTM starts; no GTM on developer hosts
 - Backup of the live site before the changes: `backups/site-2026-11-18-before-prestart-data.zip`.
 - **Why:** the Meta Pixel is started by the GTM container; on the thank-you page the hashed customer data only appeared in the later `purchase` push, so the Pixel began without it (the browser Purchase showed no email, phone, name or city, while the server events had them).
