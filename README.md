@@ -29,6 +29,15 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-18: Phone layout on every screen; the partner logos slide from left to right
+- Backup of the live site before the changes: `backups/site-2026-11-18-before-phone-layout.zip`.
+- **One layout, the phone layout, on every device.** There is no separate desktop design any more: on a desktop, laptop or tablet the site is shown as the same phone-sized column (430 px wide, centred, soft grey surround with a light shadow). On a phone nothing changes (checked: the home page, checkout and thank-you page at 360 and 390 px are pixel-identical to before apart from the logo strip and font anti-aliasing). Done in `assets/style.css`:
+  - the rules for screens up to 980 px (the phone/tablet rules) now apply to every width (`@media all`); the rules for even smaller phones (≤ 380, ≤ 360, ≤ 315 px) and the height/landscape rules stay as real queries; the desktop-only rules (`min-width`) are removed (5-column grid, centred dialogs, static checkout button);
+  - `body` is limited to `--col` (430 px) and centred; everything that is `position: fixed` follows the column instead of the whole window: the checkout bar, the floating WhatsApp and cart buttons, the menu panel, the shipping menu and the bottom sheets (cart, size guide, "Added to your cart").
+- **"Our Official Partners" is now a slider:** one row of the four logos that moves slowly from left to right, endlessly (about 24 s per round), with soft fading edges. The logos are smaller (24–34 px high, each in its own proportions), not links and not clickable. The row is in the page twice so the loop has no gap (the second copy is hidden from screen readers); with "reduce motion" switched on the row stands still and shows the four logos once. HTML from `partners_block()` in `tools/build.py`.
+- Tests (browser): widths 1920, 1280, 768, 430, 390, 360 all give a 430 px (or narrower) column, no horizontal scroll, burger menu, one product per row, no console errors; at 1280 px the menu panel, "Added to your cart" sheet, cart sheet, checkout bar and floating buttons all sit inside the column; the logo row moves to the right; checkout, thank-you and the three policy pages are single-column at 1280 px. Not tested: real phones, real hosting.
+- Files: `assets/style.css`, `tools/build.py`, generated pages, `README.md`.
+
 ### 2026-11-18: Delivery "1–3 days"; "Our Official Partners" logo strip under the reviews
 - Backup of the live site before the changes: `backups/site-2026-11-18-before-partners-delivery.zip`.
 - **Delivery timeframe is now "1–3 days"** everywhere (it comes from one constant, `DELIVERY` in `tools/build.py`): delivery line under the hero, order steps, FAQ, Shipping & Returns, thank-you page and the "Added to your cart" pop-up. Still no "working days".

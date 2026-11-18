@@ -334,14 +334,17 @@ def footer(landing=False):
 
 def partners_block():
     """Partner logos shown only for files that exist in img/partners/ (nothing is invented)."""
-    items = []
+    items, copy = [], []
     for name, f in PARTNERS:
         for ext in ("svg", "webp", "png", "jpg"):
             if (OUT / "img" / "partners" / f"{f}.{ext}").exists():
-                items.append(f'<li><img src="img/partners/{f}.{ext}" alt="{name}" loading="lazy" draggable="false"></li>'); break
+                items.append(f'<li class="lg-{f}"><img src="img/partners/{f}.{ext}" alt="{name}" draggable="false"></li>')
+                copy.append(f'<li class="lg-{f}"><img src="img/partners/{f}.{ext}" alt="" draggable="false"></li>'); break
     if not items: return ""
-    # small strip under the reviews: logos only, not links, kept in their own proportions
-    return f'<section class="partners" id="partners" aria-labelledby="ptTitle"><div class="wrap"><h2 id="ptTitle">Our Official Partners</h2><ul class="plogos">{"".join(items)}</ul></div></section>\n'
+    # small strip under the reviews: one row of logos that slides from left to right, endlessly (the row is there twice so the loop has no gap;
+    # the second copy is hidden from screen readers). Logos only, not links, each kept in its own proportions.
+    return (f'<section class="partners" id="partners" aria-labelledby="ptTitle"><div class="wrap"><h2 id="ptTitle">Our Official Partners</h2></div>'
+            f'<div class="pmarq"><div class="ptrack"><ul class="plogos">{"".join(items)}</ul><ul class="plogos" aria-hidden="true">{"".join(copy)}</ul></div></div></section>\n')
 
 def page_index():
     h = head("Babyglee® — International Kids' Sneakers, Available in Bangladesh", "International kids' sneaker brand designed for European markets and available in Bangladesh. Five colours, EU sizes 21–36, Cash on Delivery and 72-hour easy exchange.", "landing", extra=faq_ld())
