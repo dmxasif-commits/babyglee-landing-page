@@ -35,10 +35,13 @@
   if (!getCookie('_fbp')) setCookie('_fbp', 'fb.1.' + Date.now() + '.' + Math.floor(Math.random() * 1e10), 90);
 
   /* ---------- attribution: UTMs + click IDs (first touch kept, last touch updated) ---------- */
-  var KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid', 'gbraid', 'wbraid', 'ttclid'];
+  /* What the ad link carries: names (campaign, ad set, ad), numbers (utm_id = campaign id, adset_id, ad_id), where the ad was shown (placement, site_source) and click ids. See Admin > Ads for the link to paste in Meta. */
+  var KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id', 'adset_id', 'ad_id', 'placement', 'site_source', 'fbclid', 'gclid', 'gbraid', 'wbraid', 'ttclid'];
   var qs = new URLSearchParams(location.search), seen = {};
-  KEYS.forEach(function (k) { var v = qs.get(k); if (v) seen[k] = v; });
+  KEYS.forEach(function (k) { var v = qs.get(k); if (v) seen[k] = v.slice(0, 300); });
   var attr = lsGet('bg_attr') || {};
+  /* The ad details of a visitor count for 30 days: after that an order is no longer credited to an old ad click. */
+  (function () { var ms = 30 * 864e5, now = Date.now(), cut = false; ['first', 'last'].forEach(function (k) { if (attr[k] && attr[k].ts && now - attr[k].ts > ms) { delete attr[k]; cut = true; } }); if (cut) lsSet('bg_attr', attr); })();
   if (Object.keys(seen).length) {
     seen.landing_page = location.pathname; seen.ts = Date.now();
     if (!attr.first) attr.first = seen;

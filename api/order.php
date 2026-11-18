@@ -59,9 +59,13 @@ $ua = mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 400);
 /* Keep only the tracking fields we know, with size limits. */
 $trIn = is_array($in['tracking'] ?? null) ? $in['tracking'] : [];
 $tracking = [];
-foreach (['event_id', 'fbp', 'fbc', 'fbclid', 'gclid', 'gbraid', 'wbraid', 'ttclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'first_utm_source', 'first_utm_campaign', 'ga', 'page_url', 'referrer'] as $k) {
+foreach (BG_TRACKING_FIELDS as $k) {
     if (isset($trIn[$k]) && is_scalar($trIn[$k])) $tracking[$k] = mb_substr((string) $trIn[$k], 0, 500);
 }
+/* Details the server knows by itself: device, system, browser (from the user agent), country (Cloudflare) and language. They are kept with the order, never taken from the browser's own claims. */
+$tracking += ua_details($ua);
+if (($cc = client_country()) !== '') $tracking['country'] = $cc;
+if (preg_match('/^([a-zA-Z]{2,3})(?:-([a-zA-Z]{2}))?/', (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''), $lm)) $tracking['lang'] = strtolower($lm[1]) . (!empty($lm[2]) ? '-' . strtoupper($lm[2]) : '');
 if (isset($trIn['meta_user_data']['external_id']) && preg_match('/^[0-9a-f]{64}$/', (string) $trIn['meta_user_data']['external_id'])) $tracking['external_id'] = $trIn['meta_user_data']['external_id'];
 if (isset($trIn['external_id']) && preg_match('/^[0-9a-f-]{8,64}$/', (string) $trIn['external_id'])) $tracking['uid'] = $trIn['external_id'];   // plain visitor ID: the server tags hash it the same way the browser does
 if (empty($tracking['event_id']) || !preg_match('/^[\w-]{5,80}$/', $tracking['event_id'])) $tracking['event_id'] = 'purchase_' . $id;
@@ -77,7 +81,7 @@ foreach ($items as $i) {
 }
 $pdo->prepare('INSERT INTO orders (id, created_at, status, source, name, phone, email, district, address, area, subtotal, delivery, total, items, tracking, ip, user_agent, note, cost, stock_held) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)')
     ->execute([$id, now(), 'pending', $source, $name, '+' . $phone, $email, $district, $address, $area, $subtotal, $delivery, $total,
-        json_encode($items, JSON_UNESCAPED_UNICODE), json_encode($tracking, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $ip, $ua, '', $cost]);
+        json_encode($items, JSON_UNESCAPED_UNICODE), json_encode($tracking, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $ip, $ua, ad_note_line($tracking), $cost]);   // the note starts with one readable line: source, campaign, ad set, ad, placement, device, country
 $pdo->prepare('INSERT INTO order_log (order_id, created_at, status, note) VALUES (?,?,?,?)')->execute([$id, now(), 'pending', 'Order placed on website (' . $source . ')']);
 $pdo->prepare('DELETE FROM leads WHERE phone = ?')->execute(['+' . $phone]);   // the order is complete: no longer an incomplete order
 $pdo->commit();

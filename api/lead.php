@@ -22,9 +22,13 @@ foreach (array_slice((array) ($in['items'] ?? []), 0, 20) as $it) {
 }
 $trIn = is_array($in['tracking'] ?? null) ? $in['tracking'] : [];
 $tracking = [];
-foreach (['fbp', 'fbc', 'fbclid', 'gclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'page_url', 'referrer'] as $k) {
+foreach (array_diff(BG_TRACKING_FIELDS, ['event_id', 'ga']) as $k) {   // 'ga' is checked more strictly below, an incomplete order has no event_id yet
     if (isset($trIn[$k]) && is_scalar($trIn[$k])) $tracking[$k] = mb_substr((string) $trIn[$k], 0, 500);
 }
+/* device, system, browser, country and language, known by the server itself (see api/order.php) */
+$tracking += ua_details((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
+if (($cc = client_country()) !== '') $tracking['country'] = $cc;
+if (preg_match('/^([a-zA-Z]{2,3})(?:-([a-zA-Z]{2}))?/', (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''), $lm)) $tracking['lang'] = strtolower($lm[1]) . (!empty($lm[2]) ? '-' . strtoupper($lm[2]) : '');
 /* ID of the browser visitor and the Google Analytics cookie: kept so a Purchase created later from this incomplete order can still be matched to the visitor. */
 if (isset($trIn['external_id']) && preg_match('/^[0-9a-f-]{8,64}$/', (string) $trIn['external_id'])) $tracking['uid'] = $trIn['external_id'];
 if (isset($trIn['ga']) && is_scalar($trIn['ga']) && preg_match('/^GA\d\.\d\.\d+\.\d+$/', (string) $trIn['ga'])) $tracking['ga'] = (string) $trIn['ga'];

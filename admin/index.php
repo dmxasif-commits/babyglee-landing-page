@@ -163,7 +163,7 @@ if ($isPost) {
     if ($act === 'lead_convert') {
         $lid = (int) $_POST['id']; $ls = $pdo->prepare('SELECT * FROM leads WHERE id = ?'); $ls->execute([$lid]); $lead = $ls->fetch();
         if (!$lead) { flash('This incomplete order no longer exists.'); go('p=leads'); }
-        $res = make_order($pdo, $_POST, (string) $lead['source'], 'confirmed', json_decode((string) $lead['tracking'], true) ?: [], (string) $lead['email'], (string) $lead['ip'], 'Recovered from an incomplete order', 'Created from an incomplete order (confirmed by phone)', $me['name'], (string) ($lead['user_agent'] ?? ''));
+        $res = make_order($pdo, $_POST, (string) $lead['source'], 'confirmed', json_decode((string) $lead['tracking'], true) ?: [], (string) $lead['email'], (string) $lead['ip'], 'Recovered from an incomplete order' . ($lead['tracking'] ? "\n" . ad_note_line(json_decode((string) $lead['tracking'], true) ?: []) : ''), 'Created from an incomplete order (confirmed by phone)', $me['name'], (string) ($lead['user_agent'] ?? ''));
         if (isset($res['err'])) { flash('Not confirmed: ' . $res['err']); go('p=lead&id=' . $lid); }
         $pdo->prepare('DELETE FROM leads WHERE id = ?')->execute([$lid]);
         /* This customer never reached the thank-you page, so the browser sent no Purchase: send it from here (Meta / server GTM, if set up in Settings). */
@@ -306,12 +306,12 @@ if ($isPost) {
 if ($page === 'export') {
     header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="babyglee-orders-' . date('Y-m-d') . '.csv"');
     $out = fopen('php://output', 'w'); fwrite($out, "\xEF\xBB\xBF");
-    fputcsv($out, ['Order ID', 'Date', 'Status', 'Source', 'Name', 'Phone', 'Email', 'District', 'Address', 'Area', 'Items', 'Subtotal', 'Delivery', 'Total', 'UTM source', 'UTM campaign', 'UTM ad set', 'UTM ad', 'Courier', 'Tracking code', 'Purchase cost', 'Note']);
+    fputcsv($out, ['Order ID', 'Date', 'Status', 'Source', 'Name', 'Phone', 'Email', 'District', 'Address', 'Area', 'Items', 'Subtotal', 'Delivery', 'Total', 'UTM source', 'UTM medium', 'UTM campaign', 'UTM ad set', 'UTM ad', 'Campaign ID', 'Ad set ID', 'Ad ID', 'Placement', 'Site source', 'Device', 'OS', 'Browser', 'Country', 'Courier', 'Tracking code', 'Purchase cost', 'Note']);
     $safe = fn($v) => preg_match('/^[=+\-@\t\r]/', (string) $v) ? "'" . $v : $v;   // stop spreadsheet formula injection
     foreach ($pdo->query('SELECT * FROM orders ORDER BY created_at DESC') as $o) {
         $items = implode(' | ', array_map(fn($i) => $i['product'] . ' EU ' . $i['size'] . ' x' . $i['qty'], json_decode((string) $o['items'], true) ?: []));
         $t = json_decode((string) $o['tracking'], true) ?: [];
-        fputcsv($out, array_map($safe, [$o['id'], $o['created_at'], $o['status'], $o['source'], $o['name'], $o['phone'], $o['email'], $o['district'], $o['address'], $o['area'], $items, $o['subtotal'], $o['delivery'], $o['total'], $t['utm_source'] ?? '', $t['utm_campaign'] ?? '', $t['utm_term'] ?? '', $t['utm_content'] ?? '', $o['courier'], $o['tracking_code'], $o['cost'], $o['note']]));
+        fputcsv($out, array_map($safe, [$o['id'], $o['created_at'], $o['status'], $o['source'], $o['name'], $o['phone'], $o['email'], $o['district'], $o['address'], $o['area'], $items, $o['subtotal'], $o['delivery'], $o['total'], $t['utm_source'] ?? '', $t['utm_medium'] ?? '', $t['utm_campaign'] ?? '', $t['utm_term'] ?? '', $t['utm_content'] ?? '', $t['utm_id'] ?? '', $t['adset_id'] ?? '', $t['ad_id'] ?? '', $t['placement'] ?? '', $t['site_source'] ?? '', $t['device'] ?? '', $t['os'] ?? '', $t['browser'] ?? '', $t['country'] ?? '', $o['courier'], $o['tracking_code'], $o['cost'], $o['note']]));
     }
     exit;
 }
@@ -378,14 +378,21 @@ if ($page === 'print') {
 /* ---------------- ads / UTM analytics: which campaign, ad set and ad bring good orders, and which bring cancellations ---------------- */
 if ($page === 'utm') {
     $days = (int) ($_GET['days'] ?? 30); if (!in_array($days, [7, 30, 90], true)) $days = 30;
-    $dims = ['campaign' => ['utm_campaign', 'Campaign'], 'content' => ['utm_content', 'Ad / creative'], 'term' => ['utm_term', 'Ad set'], 'source' => ['utm_source', 'Source']];
+    $dims = ['campaign' => ['utm_campaign', 'Campaign'], 'term' => ['utm_term', 'Ad set'], 'content' => ['utm_content', 'Ad / creative'], 'path' => ['', 'Campaign › ad set › ad'], 'placement' => ['placement', 'Placement'],
+        'source' => ['utm_source', 'Source'], 'device' => ['device', 'Device'], 'country' => ['country', 'Country'], 'os' => ['os', 'System'], 'browser' => ['browser', 'Browser']];
     $by = isset($dims[$_GET['by'] ?? '']) ? (string) $_GET['by'] : 'campaign';
-    $st = $pdo->prepare('SELECT status, total, subtotal, cost, tracking FROM orders WHERE created_at >= ?'); $st->execute([date('Y-m-d 00:00:00', strtotime('-' . ($days - 1) . ' days'))]);
+    $st = $pdo->prepare('SELECT status, total, subtotal, cost, tracking, user_agent FROM orders WHERE created_at >= ?'); $st->execute([date('Y-m-d 00:00:00', strtotime('-' . ($days - 1) . ' days'))]);
     $g = []; $tot = ['n' => 0, 'pending' => 0, 'confirmed' => 0, 'delivered' => 0, 'bad' => 0, 'value' => 0, 'profit' => 0];
     foreach ($st as $o) {
         $t = json_decode((string) $o['tracking'], true) ?: [];
-        $label = trim((string) ($t[$dims[$by][0]] ?? ''));
-        if ($label === '') $label = $by === 'source' ? (!empty($t['fbclid']) ? 'facebook (click id, no UTM)' : (!empty($t['gclid']) ? 'google (click id, no UTM)' : 'direct / unknown')) : '(no ' . strtolower($dims[$by][1]) . ' tag)';
+        if (in_array($by, ['device', 'os', 'browser'], true) && empty($t[$by])) $t += ua_details((string) $o['user_agent']);   // older orders: worked out from the stored browser
+        if ($by === 'path') {
+            $label = implode(' › ', array_filter([trim((string) ($t['utm_campaign'] ?? '')), trim((string) ($t['utm_term'] ?? '')), trim((string) ($t['utm_content'] ?? ''))], fn($x) => $x !== ''));
+            if ($label === '') $label = '(no campaign / ad set / ad tags)';
+        } else {
+            $label = trim((string) ($t[$dims[$by][0]] ?? ''));
+            if ($label === '') $label = $by === 'source' ? (!empty($t['fbclid']) ? 'facebook (click id, no UTM)' : (!empty($t['gclid']) ? 'google (click id, no UTM)' : (!empty($t['ttclid']) ? 'tiktok (click id, no UTM)' : 'direct / unknown'))) : '(no ' . strtolower($dims[$by][1]) . ' tag)';
+        }
         $g[$label] = $g[$label] ?? ['n' => 0, 'pending' => 0, 'confirmed' => 0, 'delivered' => 0, 'bad' => 0, 'value' => 0, 'profit' => 0];
         $bucket = $o['status'] === 'pending' ? 'pending' : ($o['status'] === 'delivered' ? 'delivered' : (in_array($o['status'], ['cancelled', 'returned'], true) ? 'bad' : 'confirmed'));
         foreach ([&$g[$label], &$tot] as &$x) {
@@ -424,8 +431,10 @@ if ($page === 'utm') {
       <form method="post" class="spend">' . $csrf . '<input type="hidden" name="act" value="spend_add"><label>Date<input type="date" name="day" value="' . date('Y-m-d') . '" required></label><label>Campaign<input name="campaign" list="camps" required maxlength="190"></label><label>Amount (৳)<input type="number" name="amount" min="1" inputmode="numeric" required></label><button class="btn sm">Add</button>
       <datalist id="camps">' . implode('', array_map(fn($c) => '<option value="' . h($c) . '">', array_filter(array_keys($g), fn($c) => $c[0] !== '('))) . '</datalist></form>'
       . ($spendRows ? '<table class="tbl small">' . implode('', array_map(fn($r) => '<tr><td>' . h(date('d M', strtotime($r['day']))) . '</td><td>' . h($r['campaign']) . '</td><td class="r">' . taka($r['amount']) . '</td><td class="r"><form method="post">' . $csrf . '<input type="hidden" name="act" value="spend_delete"><input type="hidden" name="id" value="' . (int) $r['id'] . '"><button class="link">Delete</button></form></td></tr>', $spendRows)) . '</table>' : '') . '</section>' : '') . '
-    <section class="card"><h2>How to tag your ads</h2><p class="mut">In Meta Ads Manager, open the ad → <b>Tracking</b> → <b>URL parameters</b> and paste this. Meta fills in the names automatically, so every order shows its campaign, ad set and ad here.</p>
-    <p><code class="blk">utm_source=facebook&amp;utm_medium=paid&amp;utm_campaign={{campaign.name}}&amp;utm_term={{adset.name}}&amp;utm_content={{ad.name}}</code></p></section>';
+    <section class="card"><h2>How to tag your ads</h2><p class="mut">In Meta Ads Manager, open the ad → <b>Tracking</b> → <b>URL parameters</b> and paste this one line. Meta fills in the names and numbers automatically, so every order shows its campaign, ad set, ad, placement and more, here and in the order note.</p>
+    <p><code class="blk">utm_source=facebook&amp;utm_medium=paid&amp;utm_campaign={{campaign.name}}&amp;utm_term={{adset.name}}&amp;utm_content={{ad.name}}&amp;utm_id={{campaign.id}}&amp;adset_id={{adset.id}}&amp;ad_id={{ad.id}}&amp;placement={{placement}}&amp;site_source={{site_source_name}}</code></p>
+    <table class="tbl small"><tr><td>utm_campaign</td><td>campaign name</td></tr><tr><td>utm_term</td><td>ad set name</td></tr><tr><td>utm_content</td><td>ad name (the creative)</td></tr><tr><td>utm_id, adset_id, ad_id</td><td>the numbers of the campaign, ad set and ad: they stay the same when you rename something, so the report can tell two ads with the same name apart</td></tr><tr><td>placement</td><td>where the ad was shown (for example Facebook_Mobile_Feed, Instagram_Stories)</td></tr><tr><td>site_source</td><td>fb, ig, msg or an (Facebook, Instagram, Messenger, Audience Network)</td></tr></table>
+    <p class="mut">The device (Mobile / Desktop / Tablet), system, browser (including the Facebook and Instagram apps), country and language are added by the website itself; they need nothing in the link. Other ad platforms: use the same line with <code>utm_source=tiktok</code>, <code>utm_source=youtube</code> or <code>utm_source=google</code> and their own names; their click ids (gclid, ttclid) are kept too.</p></section>';
     page_foot(); exit;
 }
 
@@ -530,9 +539,12 @@ if ($page === 'orders') {
     if (!$rows) echo '<p class="card mut">No orders found.</p>';
     foreach ($rows as $o) {
         $items = json_decode((string) $o['items'], true) ?: [];
+        $tt = json_decode((string) $o['tracking'], true) ?: [];   // one short line under each order: where it came from
+        $srcLine = implode(' · ', array_filter([trim((string) ($tt['utm_source'] ?? '') . (!empty($tt['utm_medium']) ? '/' . $tt['utm_medium'] : ''), '/'), $tt['utm_campaign'] ?? '', $tt['utm_term'] ?? '', $tt['utm_content'] ?? '', $tt['placement'] ?? '', $tt['device'] ?? '', $tt['country'] ?? ''], fn($x) => trim((string) $x) !== ''));
         echo '<article class="card order"><div class="o-top"><input type="checkbox" class="pick" name="ids[]" value="' . h($o['id']) . '" form="bulk" aria-label="Select order ' . h($o['id']) . '"><a class="oid" href="index.php?p=order&id=' . rawurlencode($o['id']) . '">#' . h($o['id']) . '</a>' . badge($o['status']) . ($hist[$o['phone']] ?? '') . '<span class="src">' . h($o['source']) . '</span><time>' . h(date('d M, h:i A', strtotime($o['created_at']))) . '</time></div>
             <div class="o-mid"><div><b>' . h($o['name']) . '</b> · <a href="tel:' . h($o['phone']) . '">' . h($o['phone']) . '</a><br><span class="mut">' . h($o['district']) . ' · ' . h($o['area']) . '</span></div><div class="o-total">' . taka($o['total']) . '</div></div>
-            <p class="o-items">' . h(implode(', ', array_map(fn($i) => $i['product'] . ' (EU ' . $i['size'] . ') × ' . $i['qty'], $items))) . '</p>
+            <p class="o-items">' . h(implode(', ', array_map(fn($i) => $i['product'] . ' (EU ' . $i['size'] . ') × ' . $i['qty'], $items))) . '</p>' . ($srcLine !== '' ? '
+            <p class="mut o-src">' . h($srcLine) . '</p>' : '') . '
             <form method="post" class="o-act">' . $GLOBALS['csrf'] . '<input type="hidden" name="act" value="status"><input type="hidden" name="back" value="list"><input type="hidden" name="id" value="' . h($o['id']) . '"><input type="hidden" name="f_status" value="' . h($status) . '"><input type="hidden" name="f_q" value="' . h($q) . '"><select name="status" aria-label="Status for order ' . h($o['id']) . '">';
         foreach (BG_STATUSES as $k => $l) echo '<option value="' . $k . '"' . ($o['status'] === $k ? ' selected' : '') . '>' . $l . '</option>';
         echo '</select><button class="btn sm">Update</button><a class="btn sm ghost" href="index.php?p=order&id=' . rawurlencode($o['id']) . '">Details</a></form></article>';
@@ -566,7 +578,10 @@ if ($page === 'order') {
     echo '</ul></section><section class="card"><h2>Internal note</h2><form method="post">' . $csrf . '<input type="hidden" name="act" value="note"><input type="hidden" name="id" value="' . h($o['id']) . '"><textarea name="note" rows="4" maxlength="2000">' . h($o['note']) . '</textarea><button class="btn">Save note</button></form>
       <h3>Courier</h3><form method="post">' . $csrf . '<input type="hidden" name="act" value="ship"><input type="hidden" name="id" value="' . h($o['id']) . '"><div class="f2"><label>Courier<input name="courier" maxlength="60" list="couriers" value="' . h($o['courier']) . '" placeholder="e.g. Pathao"></label><label>Tracking / consignment ID<input name="tracking_code" maxlength="80" value="' . h($o['tracking_code']) . '"></label></div><datalist id="couriers"><option value="Pathao"><option value="Steadfast"><option value="RedX"><option value="Sundarban"><option value="eCourier"><option value="Paperfly"></datalist><button class="btn sm">Save courier</button></form>
       <h3>Where it came from</h3><table class="tbl small">';
-    foreach (['utm_source' => 'UTM source', 'utm_medium' => 'UTM medium', 'utm_campaign' => 'UTM campaign', 'utm_term' => 'Ad set (utm_term)', 'utm_content' => 'Ad / creative (utm_content)', 'fbclid' => 'Meta click ID', 'gclid' => 'Google click ID', 'referrer' => 'Referrer', 'page_url' => 'Order page', 'event_id' => 'Event ID'] as $k => $l) if (!empty($t[$k])) echo '<tr><td>' . $l . '</td><td class="brk">' . h($t[$k]) . '</td></tr>';
+    if (empty($t['device']) && ($ud = ua_details((string) $o['user_agent']))) $t += $ud;   // orders from before these details were saved: worked out from the stored browser
+    foreach (['utm_source' => 'UTM source', 'utm_medium' => 'UTM medium', 'utm_campaign' => 'UTM campaign', 'utm_term' => 'Ad set (utm_term)', 'utm_content' => 'Ad / creative (utm_content)', 'utm_id' => 'Campaign ID', 'adset_id' => 'Ad set ID', 'ad_id' => 'Ad ID', 'placement' => 'Placement', 'site_source' => 'Site / app (fb, ig …)',
+        'device' => 'Device', 'os' => 'System', 'browser' => 'Browser', 'country' => 'Country', 'lang' => 'Language', 'first_utm_source' => 'First visit: source', 'first_utm_campaign' => 'First visit: campaign',
+        'fbclid' => 'Meta click ID', 'gclid' => 'Google click ID', 'ttclid' => 'TikTok click ID', 'referrer' => 'Referrer', 'page_url' => 'Order page', 'event_id' => 'Event ID'] as $k => $l) if (!empty($t[$k])) echo '<tr><td>' . $l . '</td><td class="brk">' . h($t[$k]) . '</td></tr>';
     echo '<tr><td>Server Purchase</td><td>' . h($o['capi_status'] ?: 'not configured') . (in_array((string) $o['dispatch_state'], ['pending', 'failed'], true) ? '<form method="post" style="margin-top:8px">' . $csrf . '<input type="hidden" name="act" value="dispatch_retry"><input type="hidden" name="id" value="' . h($o['id']) . '"><button class="btn sm ghost">Try again now</button></form>' : '') . '</td></tr><tr><td>IP</td><td>' . h($o['ip']) . '</td></tr></table></section></div>';
     page_foot(); exit;
 }

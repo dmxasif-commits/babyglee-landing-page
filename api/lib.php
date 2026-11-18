@@ -223,6 +223,65 @@ function client_ip(): string {
     return substr($remote, 0, 45);
 }
 
+/* Country of the visitor (two letters, for example BD) as Cloudflare reports it in the CF-IPCountry header. Trusted only when the request really comes from a Cloudflare
+   address (anyone can send that header to the server directly). Empty when unknown (no Cloudflare, or Cloudflare could not tell). */
+function client_country(): string {
+    $remote = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    $c = strtoupper(trim((string) ($_SERVER['HTTP_CF_IPCOUNTRY'] ?? '')));
+    if ($remote === '' || !preg_match('/^[A-Z]{2}$/', $c) || in_array($c, ['XX', 'T1'], true)) return '';   // XX = unknown, T1 = Tor
+    foreach (BG_CF_RANGES as $range) if (ip_in_range($remote, $range)) return $c;
+    return '';
+}
+
+/* Device, system and browser from the user agent (no library, the usual cases: phones in Bangladesh, the Facebook / Instagram in-app browsers, desktops). */
+function ua_details(string $ua): array {
+    $ua = mb_substr($ua, 0, 400);
+    if ($ua === '') return [];
+    $device = 'Desktop';
+    if (preg_match('/bot|crawl|spider|facebookexternalhit|facebot|slurp|preview/i', $ua)) $device = 'Bot';
+    elseif (preg_match('/iPad|Tablet|PlayBook|Silk|Android(?!.*Mobile)/i', $ua)) $device = 'Tablet';
+    elseif (preg_match('/Mobi|iPhone|iPod|Android|Windows Phone|Opera Mini/i', $ua)) $device = 'Mobile';
+    $os = 'Other';
+    if (preg_match('/Android\s*([\d.]+)?/i', $ua, $m)) $os = 'Android' . (!empty($m[1]) ? ' ' . explode('.', $m[1])[0] : '');
+    elseif (preg_match('/iPhone OS ([\d_]+)|iPad.*OS ([\d_]+)|CPU OS ([\d_]+)/i', $ua, $m)) $os = 'iOS ' . explode('_', ($m[1] ?: ($m[2] ?: ($m[3] ?? ''))))[0];
+    elseif (stripos($ua, 'Windows') !== false) $os = 'Windows';
+    elseif (stripos($ua, 'Mac OS X') !== false || stripos($ua, 'Macintosh') !== false) $os = 'macOS';
+    elseif (stripos($ua, 'CrOS') !== false) $os = 'ChromeOS';
+    elseif (stripos($ua, 'Linux') !== false) $os = 'Linux';
+    $browser = 'Other';
+    if (preg_match('/FBAN|FBAV|FB_IAB|FBIOS/i', $ua)) $browser = (stripos($ua, 'Messenger') !== false || stripos($ua, 'FBAN/Orca') !== false || stripos($ua, 'MessengerForiOS') !== false) ? 'Messenger app' : 'Facebook app';
+    elseif (stripos($ua, 'Instagram') !== false) $browser = 'Instagram app';
+    elseif (preg_match('/musical_ly|BytedanceWebview|TikTok/i', $ua)) $browser = 'TikTok app';
+    elseif (preg_match('/Line\//i', $ua)) $browser = 'LINE app';
+    elseif (stripos($ua, 'SamsungBrowser') !== false) $browser = 'Samsung Internet';
+    elseif (preg_match('/OPR\/|Opera|OPiOS/i', $ua)) $browser = 'Opera';
+    elseif (preg_match('/Edg(e|A|iOS)?\//i', $ua)) $browser = 'Edge';
+    elseif (preg_match('/Firefox|FxiOS/i', $ua)) $browser = 'Firefox';
+    elseif (preg_match('/UCBrowser|UCWEB/i', $ua)) $browser = 'UC Browser';
+    elseif (preg_match('/Chrome|CriOS/i', $ua)) $browser = 'Chrome';
+    elseif (stripos($ua, 'Safari') !== false) $browser = 'Safari';
+    return ['device' => $device, 'os' => $os, 'browser' => $browser];
+}
+
+/* The tracking fields kept with an order or an incomplete order: what the ad link carries (UTM names, ids, placement), click ids and browser ids. Each one is cut to 500 characters. */
+const BG_TRACKING_FIELDS = ['event_id', 'fbp', 'fbc', 'fbclid', 'gclid', 'gbraid', 'wbraid', 'ttclid',
+    'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id', 'adset_id', 'ad_id', 'placement', 'site_source',
+    'first_utm_source', 'first_utm_campaign', 'ga', 'page_url', 'referrer'];
+
+/* One readable line about where an order came from and on what device, written into the order note when the order arrives (the figures themselves stay in the tracking data). */
+function ad_note_line(array $t): string {
+    $src = trim((string) ($t['utm_source'] ?? '')); $med = trim((string) ($t['utm_medium'] ?? ''));
+    if ($src === '') $src = !empty($t['fbclid']) ? 'facebook (click id, no UTM)' : (!empty($t['gclid']) ? 'google (click id, no UTM)' : (!empty($t['ttclid']) ? 'tiktok (click id, no UTM)' : 'direct / unknown'));
+    $parts = ['Source: ' . $src . ($med !== '' ? ' / ' . $med : '')];
+    foreach (['utm_campaign' => 'Campaign', 'utm_term' => 'Ad set', 'utm_content' => 'Ad'] as $k => $l) if (!empty($t[$k])) $parts[] = $l . ': ' . $t[$k];
+    if (!empty($t['placement'])) $parts[] = 'Placement: ' . $t['placement'] . (!empty($t['site_source']) ? ' (' . $t['site_source'] . ')' : '');
+    elseif (!empty($t['site_source'])) $parts[] = 'Site: ' . $t['site_source'];
+    $dev = array_filter([$t['device'] ?? '', $t['os'] ?? '', $t['browser'] ?? '']);
+    if ($dev) $parts[] = 'Device: ' . implode(', ', $dev);
+    if (!empty($t['country'])) $parts[] = 'Country: ' . $t['country'];
+    return mb_substr('[Ad info] ' . implode(' · ', $parts), 0, 900);
+}
+
 /* Normalises a Bangladeshi mobile number to 8801XXXXXXXXX (digits only) or returns '' when invalid. */
 function bd_phone(string $raw): string {
     $d = preg_replace('/\D+/', '', $raw) ?? '';

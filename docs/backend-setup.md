@@ -44,8 +44,12 @@ Use **HTTPS** (cPanel → SSL/TLS Status → AutoSSL). The admin login cookie is
 - **Purchase price and profit:** enter your cost per pair on each product. Profit = product price minus purchase price (delivery charge and ad spend are not included).
   Orders placed before you entered a cost have no cost saved.
 - **Ads (UTM):** shows which campaign, ad set and ad bring orders and how many of them get cancelled. It only works when your ads carry UTM tags.
-  In Meta Ads Manager → ad → Tracking → URL parameters, paste:
-  `utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}`
+  In Meta Ads Manager → ad → Tracking → URL parameters, paste this one line:
+  `utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}&utm_id={{campaign.id}}&adset_id={{adset.id}}&ad_id={{ad.id}}&placement={{placement}}&site_source={{site_source_name}}`
+  Every order keeps what the link carried (campaign, ad set, ad, their ids, placement, site/app, click ids) and what the website works out itself: **device** (Mobile / Desktop / Tablet), **system**, **browser** (the Facebook and Instagram apps are recognised), **country** (from Cloudflare, so only when the site is behind Cloudflare; it needs Cloudflare's "IP Geolocation", on by default) and **language**.
+  You see them on the order page ("Where it came from"), as one short line under each order in the list, in the CSV download, and as the first line of the order's **Internal note** (`[Ad info] Source: … · Campaign: … · Ad set: … · Ad: … · Placement: … · Device: …`; staff can edit the note, the figures themselves stay in the tracking data).
+  The Ads page can be split by Campaign, Ad set, Ad / creative, Campaign › ad set › ad, Placement, Source, Device, Country, System and Browser. Orders from before this was added show their device, system and browser (worked out from the stored browser) but no placement or country.
+  A visitor's ad details count for 30 days; after that an order is no longer credited to an old ad click. Other platforms: use the same line with `utm_source=tiktok`, `youtube` or `google` and their own names.
 - **Courier:** save the courier name and tracking / consignment ID on the order; it prints on the invoice and sticker.
 - **Sizes and stock:** on a product, each size is a row with its own stock. Tick *Count stock for this product* only after typing the real quantities:
   from then on a size with 0 pairs is sold out on the website. Cancelling or returning an order puts its pairs back.
