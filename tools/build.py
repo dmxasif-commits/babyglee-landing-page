@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generates the Babyglee landing site (index, checkout, thank-you, policies) into the repo root: python3 tools/build.py"""
-import json, pathlib, re
+import hashlib, json, pathlib, re
 
 OUT = pathlib.Path(__file__).resolve().parent.parent
 BASE = "https://dmxasif-commits.github.io/babyglee-landing-page/"  # change if you move to a custom domain
@@ -86,6 +86,12 @@ def size_table():
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2324babc'/%3E"
            "%3Ctext x='32' y='46' font-size='40' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3Eb%3C/text%3E%3C/svg%3E")
 
+def asset(path):
+    """URL of a site file with a short content hash (?v=...). The server tells browsers and the CDN to keep CSS and images for 7 days; with the hash in the link a changed
+    file is fetched at once by everybody. The hash is computed when the pages are built, so run `python3 tools/build.py` after every change to the CSS or JS."""
+    f = OUT / path
+    return f"{path}?v={hashlib.md5(f.read_bytes()).hexdigest()[:8]}" if f.exists() else path
+
 def head(title, desc, page, img="img/sky-blue-yellow.webp", extra=""):
     return f'''<!doctype html>
 <html lang="en">
@@ -103,11 +109,11 @@ def head(title, desc, page, img="img/sky-blue-yellow.webp", extra=""):
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="{asset('assets/style.css')}">
 <script src="assets/config.js"></script>
 <script src="assets/products.js"></script>
 <script src="assets/reviews.js"></script>
-<script src="assets/tracking.js"></script>
+<script src="{asset('assets/tracking.js')}"></script>
 {extra}
 </head>
 <body data-page="{page}">
@@ -327,7 +333,7 @@ def footer(landing=False):
 </footer>
 <a class="fab fab-wa" id="waFab" href="https://wa.me/{WA}" target="_blank" rel="noopener" aria-label="Chat with us on WhatsApp">{ic("whatsapp")}</a>
 {cartfab}{sheets}<div class="toast" id="toast" role="status"></div>
-<script src="assets/main.js"></script>
+<script src="{asset('assets/main.js')}"></script>
 </body>
 </html>
 """
