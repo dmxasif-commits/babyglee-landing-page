@@ -73,8 +73,19 @@ Other identifiers sent with events: `fbp` (Meta browser cookie), `fbc` (built fr
 UTMs, `gclid` / `gbraid` / `wbraid`, `ttclid`. First-touch and last-touch attribution is kept in `localStorage` (`bg_attr`).
 
 **Hash only once.** Because the data is already hashed, tell each tag it is already hashed (Google: "data is already hashed" / `sha256_` keys;
-Meta CAPI tag: pre-hashed). The Meta *browser* Pixel hashes plain values itself; to avoid double hashing, do not feed it `meta_user_data`.
-Send the hashed values through the **server** CAPI tag instead.
+Meta CAPI tag: pre-hashed). The Meta *browser* Pixel hashes plain values itself; if you feed it `meta_user_data` (advanced matching) the values are
+already SHA-256 hashed, so never hash them a second time. The same values also go through the **server** CAPI tag.
+
+**Thank-you page timing.** The GTM container starts the Meta Pixel as soon as it loads, so on `thank-you.html` the customer data is pushed
+**before** the container loads: `tracking.js` reads the order kept in `sessionStorage` (`bg_last_order`) and pushes
+`{ external_id, meta_user_data }` as the very first `dataLayer` entry (index 0, before the `gtm.js` entry). The single `purchase` push (with its own
+`event_id` = `purchase_<orderId>`, `ecommerce.transaction_id`, `ecommerce.shipping` and the same `meta_user_data`) follows later. The `event_id` is
+deliberately not in the first entry: it belongs to the purchase push only. To check: in the browser console on the thank-you page run
+`JSON.stringify(dataLayer.map(function(e,i){return {i:i, event:e.event, event_id:e.event_id, has_meta_user_data:!!e.meta_user_data}}))`.
+
+**Developer and preview hosts.** GTM is not started on `localhost`, `127.x`, `*.local` or `*.github.io`, so testing there never reaches the live
+Pixel or GA4 (add `?bggtm=1` to a URL to start it there on purpose; remembered for the tab). The site never sends a Meta `test_event_code`
+from the browser; the only place it exists is the optional server-side Conversions API setting in Admin → Settings (empty).
 
 ## 4. GTM web container: what to create
 

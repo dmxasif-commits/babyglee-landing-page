@@ -11,15 +11,7 @@
   window.dataLayer = window.dataLayer || [];
   var CUR = 'BDT';
 
-  /* ---------- GTM loader (set GTM_ID in assets/config.js; GTM_SRC optional first-party/server-side loader URL) ---------- */
-  if (BG.GTM_ID) {
-    (function (w, d, s, l, i) {
-      w[l] = w[l] || []; w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
-      var f = d.getElementsByTagName(s)[0], j = d.createElement(s);
-      j.async = true; j.src = (BG.GTM_SRC || 'https://www.googletagmanager.com/gtm.js') + '?id=' + i;
-      f.parentNode.insertBefore(j, f);
-    })(window, document, 'script', 'dataLayer', BG.GTM_ID);
-  }
+  /* The GTM loader is further down (after the helpers), because on the thank-you page the customer data must be in the dataLayer before GTM starts. */
 
   /* ---------- small helpers ---------- */
   function getCookie(n) { var m = document.cookie.match(new RegExp('(?:^|; )' + n.replace(/[.$?*|{}()[\]\\/+^]/g, '\\$&') + '=([^;]*)')); return m ? decodeURIComponent(m[1]) : ''; }
@@ -118,14 +110,21 @@
   function splitName(full) { var p = String(full || '').trim().toLowerCase().split(/\s+/); return { first: p[0] || '', last: p.slice(1).join(' ') }; }
   var stripPunct = function (s) { return String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); };
 
+  /* The exact strings that are hashed for Meta (meta_user_data): lowercase, trimmed; phone = digits with country code (8801XXXXXXXXX, no plus); name and city without punctuation or spaces; country "bd". Used by both the async and the synchronous hashing below, so the values are identical. */
+  function metaNorm(c) {
+    c = c || {};
+    var ph = phoneParts(c.phone), nm = splitName(c.name), district = String(c.district || '').trim();
+    return { ph: ph ? ph.digits : '', em: String(c.email || '').trim().toLowerCase(), fn: nm.first ? stripPunct(nm.first) : '', ln: nm.last ? stripPunct(nm.last) : '', ct: district ? stripPunct(district) : '' };
+  }
+
   /* Builds hashed customer data for Google (user_data) and Meta (meta_user_data). Everything hashed once, here. */
   function customerData(c) {
     c = c || {};
-    var ph = phoneParts(c.phone), nm = splitName(c.name), email = String(c.email || '').trim().toLowerCase();
+    var ph = phoneParts(c.phone), nm = splitName(c.name), n = metaNorm(c), email = n.em;
     var street = String(c.address || '').trim().toLowerCase(), district = String(c.district || '').trim();
     return Promise.all([
       ph ? sha256(ph.e164) : '', email ? sha256(email) : '', nm.first ? sha256(nm.first) : '', nm.last ? sha256(nm.last) : '', street ? sha256(street) : '',
-      ph ? sha256(ph.digits) : '', nm.first ? sha256(stripPunct(nm.first)) : '', nm.last ? sha256(stripPunct(nm.last)) : '', district ? sha256(stripPunct(district)) : '',
+      n.ph ? sha256(n.ph) : '', n.fn ? sha256(n.fn) : '', n.ln ? sha256(n.ln) : '', n.ct ? sha256(n.ct) : '',
       sha256('bd'), sha256(uid)
     ]).then(function (r) {
       var g = { address: { country: 'BD' } };
@@ -139,6 +138,43 @@
       if (r[5]) m.ph = r[5]; if (r[1]) m.em = r[1]; if (r[6]) m.fn = r[6]; if (r[7]) m.ln = r[7]; if (r[8]) m.ct = r[8];
       return { user_data: g, meta_user_data: m };
     });
+  }
+
+  /* Same meta_user_data as customerData(), but synchronous (pure-JS SHA-256), for the moment before GTM loads. */
+  function sha256Sync(s) { s = String(s == null ? '' : s); return s ? sha256Fallback(unescape(encodeURIComponent(s))) : ''; }
+  function metaUserDataSync(c) {
+    var n = metaNorm(c), m = { country: sha256Sync('bd'), external_id: sha256Sync(uid) };
+    if (n.ph) m.ph = sha256Sync(n.ph); if (n.em) m.em = sha256Sync(n.em); if (n.fn) m.fn = sha256Sync(n.fn); if (n.ln) m.ln = sha256Sync(n.ln); if (n.ct) m.ct = sha256Sync(n.ct);
+    return m;
+  }
+
+  /* ---------- thank-you page: customer data goes into the dataLayer BEFORE GTM starts ---------- */
+  /* The Meta Pixel is started by the GTM container; if the customer data only appears in the later purchase push, the Pixel has already begun without it.
+     So on the thank-you page the hashed meta_user_data (and the visitor's external_id, the same key as on every event) is pushed first, from the order kept in sessionStorage.
+     The purchase push itself still carries the same meta_user_data. No event_id here: the purchase event_id belongs to the purchase push only. */
+  (function seedOrderData() {
+    try {
+      if (!/thank-you/.test(location.pathname)) return;
+      var o = JSON.parse(sessionStorage.getItem('bg_last_order') || 'null');
+      if (!o || !o.id) return;
+      var demoOff = false; try { demoOff = !!o.demo && localStorage.getItem('bg_track_demo') !== '1'; } catch (e) { demoOff = !!o.demo; }
+      if (demoOff) return;
+      window.dataLayer.push({ external_id: uid, meta_user_data: metaUserDataSync(o) });
+    } catch (e) { /* never block the page */ }
+  })();
+
+  /* ---------- GTM loader (set GTM_ID in assets/config.js; GTM_SRC optional first-party/server-side loader URL) ---------- */
+  /* Not started on developer or preview hosts (localhost, 127.x, *.local, *.github.io), so testing there never sends events to the live Pixel/GA4.
+     Add ?bggtm=1 to a URL to start it there on purpose (remembered for the browser tab). */
+  var devHost = /^(localhost|127\.|0\.0\.0\.0|\[::1\]|.*\.local$|.*\.github\.io$)/i.test(location.hostname);
+  if (devHost) { try { if (/[?&]bggtm=1/.test(location.search)) sessionStorage.setItem('bg_gtm_dev', '1'); devHost = sessionStorage.getItem('bg_gtm_dev') !== '1'; } catch (e) {} }
+  if (BG.GTM_ID && !devHost) {
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || []; w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+      var f = d.getElementsByTagName(s)[0], j = d.createElement(s);
+      j.async = true; j.src = (BG.GTM_SRC || 'https://www.googletagmanager.com/gtm.js') + '?id=' + i;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', BG.GTM_ID);
   }
 
   /* ---------- identifiers sent with events ---------- */
