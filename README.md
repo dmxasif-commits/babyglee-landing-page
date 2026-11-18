@@ -29,6 +29,15 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-19: Dashboard and Ads: Today, Yesterday and a custom date range
+- Backup of the live site before the changes: `backups/site-2026-11-19-before-date-ranges.zip`.
+- **Period buttons** on the Dashboard and on the Ads & UTM report: **Today, Yesterday, 7 days, 30 days, 90 days, Custom** (before: only 7, 30, 90 days). **Custom** shows two date boxes (From, To) and a Show button; the dates can be entered in either order (they are swapped), never in the future, at most one year (a longer range is cut to 366 days), and invalid dates fall back to the last 7 days. A line under the buttons says what is shown ("Showing today (19 Nov).", "Showing 13 Nov – 19 Nov 2026 (7 days).").
+- **One day = hourly chart:** for Today, Yesterday or a one-day custom range the Dashboard chart shows orders **per hour** (before: bars per day only); longer ranges still show bars per day (with no gaps between bars above 90 days).
+- The Ads report keeps the chosen period when another tab (Campaign, Ad set, Ad, Placement, Device, Country …) is opened, and the ad-spend list on the Campaign tab follows the period too. The dashboard's "Today" card is now always today (before it depended on the chosen period), and the "Confirmed / Cancelled by staff" cards follow the period.
+- Days start and end at midnight Bangladesh time (the server clock, `Asia/Dhaka`, that stamps the orders). Old links with `?days=7|30|90` keep working. Admin CSS is now linked with a content hash like the site's CSS (a changed `admin.css` reaches the browser at once). `admin/index.php` (`report_range()`, `range_picker()`), `admin/admin.css`.
+- Tests (local backend, sandbox admin, orders spread over today, yesterday, five days ago and 40 days ago): Today = 2, Yesterday = 1, 7 / 30 days = 4, 90 days = 13, custom ranges (normal, reversed, end in the future, garbage, longer than a year, one day) on both pages; the hourly chart has 24 bars, the day charts 7 / 30 / 90 / 366 bars; dimension tabs keep the range; the buttons wrap on a 390 px phone; no page error. Not tested: the real database with real orders.
+- Files: `admin/index.php`, `admin/admin.css`, `docs/backend-setup.md`, `README.md`.
+
 ### 2026-11-19: Ad details and visitor details kept with every order; Ads report by placement, device, country and more
 - Backup of the live site before the changes: `backups/site-2026-11-19-before-ad-details.zip`.
 - **From the ad link (new):** besides `utm_source`, `utm_medium`, `utm_campaign` (campaign), `utm_term` (ad set) and `utm_content` (ad) the site now keeps `utm_id` (campaign id), `adset_id`, `ad_id`, `placement` and `site_source` (fb, ig, msg, an). The ids stay the same when a name is changed, so two ads with the same name can be told apart. The one line to paste in Meta Ads Manager (ad → Tracking → URL parameters) is on Admin → Ads and in `docs/backend-setup.md`.

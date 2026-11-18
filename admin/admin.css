@@ -80,3 +80,7 @@ form.inl{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;align-item
 .gal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}.gi{display:block;margin:0;font-size:.8rem}.gi img{width:100%;aspect-ratio:1;object-fit:contain;background:var(--teal-xl);border-radius:10px;padding:4px}.gi input{margin-right:4px}
 .rv{display:grid;gap:10px}.rv img{max-width:260px;width:100%;border-radius:12px;border:1px solid var(--line)}.rv.off{opacity:.55}.rv p{margin:6px 0 0}.stars{color:#f5a300;letter-spacing:2px}
 @media(min-width:720px){.rv{grid-template-columns:auto 1fr auto;align-items:start}}
+/* date range of the Dashboard and Ads pages (Today / Yesterday / 7 / 30 / 90 days / Custom) */
+.range{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;padding:12px 14px;margin-bottom:10px}.range label{margin:0;flex:1 1 130px}.range .btn{flex:none}
+.range-note{margin:2px 0 12px}
+.tabs.wrap{flex-wrap:wrap;overflow:visible}

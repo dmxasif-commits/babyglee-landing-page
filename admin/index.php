@@ -326,7 +326,7 @@ if ($page === 'backup') {
 /* ---------------- pages ---------------- */
 function page_head(string $title, bool $nav = true): void {
     global $page, $csrf, $me, $isAdmin;
-    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>' . h($title) . ' — Babyglee admin</title><link rel="stylesheet" href="admin.css"></head><body>';
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>' . h($title) . ' — Babyglee admin</title><link rel="stylesheet" href="admin.css?v=' . substr((string) @md5_file(__DIR__ . '/admin.css'), 0, 8) . '"></head><body>';
     if ($nav) {
         $links = ['dashboard' => 'Dashboard', 'orders' => 'Orders', 'leads' => 'Incomplete'] + ($isAdmin ? ['utm' => 'Ads', 'products' => 'Products', 'reviews' => 'Reviews', 'settings' => 'Settings'] : []);
         echo '<header class="top"><a class="logo" href="index.php">Babyglee <span>admin</span></a><nav>';
@@ -375,13 +375,60 @@ if ($page === 'print') {
     echo '</body></html>'; exit;
 }
 
+/* ---------------- date range of the report pages (Dashboard and Ads) ---------------- */
+/* Today, Yesterday, the last 7 / 30 / 90 days, or a custom from-to range (at most one year, never in the future). Day boundaries follow the server time (Asia/Dhaka),
+   the same clock that stamps the orders. Old links with ?days=7|30|90 keep working. */
+function report_range(): array {
+    $today = date('Y-m-d'); $range = (string) ($_GET['range'] ?? '');
+    $ok = fn($d) => is_string($d) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) === 1 && date('Y-m-d', (int) strtotime($d)) === $d;
+    if ($range === 'today') { $from = $to = $today; $key = 'today'; }
+    elseif ($range === 'yesterday') { $from = $to = date('Y-m-d', strtotime('-1 day')); $key = 'yesterday'; }
+    elseif ($range === 'custom') {
+        $from = $ok($_GET['from'] ?? null) ? (string) $_GET['from'] : date('Y-m-d', strtotime('-6 days'));
+        $to = $ok($_GET['to'] ?? null) ? (string) $_GET['to'] : $today;
+        if ($from > $to) [$from, $to] = [$to, $from];
+        if ($to > $today) $to = $today;
+        if ($from > $to) $from = $to;
+        if (strtotime($to) - strtotime($from) > 365 * 86400) $from = date('Y-m-d', strtotime($to . ' -365 days'));
+        $key = 'custom';
+    } else {
+        $d = (int) ($_GET['days'] ?? 30); if (!in_array($d, [7, 30, 90], true)) $d = 30;
+        $from = date('Y-m-d', strtotime('-' . ($d - 1) . ' days')); $to = $today; $key = (string) $d;
+    }
+    $n = (int) round((strtotime($to) - strtotime($from)) / 86400) + 1;
+    $label = $key === 'today' ? 'today (' . date('d M', strtotime($to)) . ')' : ($key === 'yesterday' ? 'yesterday (' . date('d M', strtotime($to)) . ')'
+        : ($key === 'custom' ? ($from === $to ? date('d M Y', strtotime($to)) : date(substr($from, 0, 4) === substr($to, 0, 4) ? 'd M' : 'd M Y', strtotime($from)) . ' – ' . date('d M Y', strtotime($to))) : 'the last ' . $key . ' days'));
+    return ['key' => $key, 'from' => $from, 'to' => $to, 'start' => $from . ' 00:00:00', 'end' => $to . ' 23:59:59', 'n' => $n, 'label' => $label];
+}
+/* The link parameters that keep the chosen range when another tab of the same page is opened. */
+function range_params(array $r): array {
+    if ($r['key'] === 'custom') return ['range' => 'custom', 'from' => $r['from'], 'to' => $r['to']];
+    if (in_array($r['key'], ['today', 'yesterday'], true)) return ['range' => $r['key']];
+    return ['days' => $r['key']];
+}
+/* The row of period buttons (Today, Yesterday, 7 / 30 / 90 days, Custom) and, for Custom, the two date boxes. $keep = the other parameters of the page (p, by …). */
+function range_picker(array $r, array $keep): string {
+    $out = '<div class="tabs wrap">'; $tabs = ['today' => 'Today', 'yesterday' => 'Yesterday', '7' => '7 days', '30' => '30 days', '90' => '90 days', 'custom' => 'Custom'];
+    foreach ($tabs as $k => $l) {
+        $q = $k === 'custom' ? ['range' => 'custom', 'from' => $r['key'] === 'custom' ? $r['from'] : date('Y-m-d', strtotime('-6 days')), 'to' => $r['key'] === 'custom' ? $r['to'] : date('Y-m-d')] : (in_array($k, ['today', 'yesterday'], true) ? ['range' => $k] : ['days' => $k]);
+        $out .= '<a href="index.php?' . h(http_build_query($keep + $q)) . '"' . ($r['key'] === (string) $k ? ' class="on"' : '') . '>' . $l . '</a>';
+    }
+    $out .= '</div>';
+    if ($r['key'] === 'custom') {
+        $out .= '<form method="get" class="card range">';
+        foreach ($keep as $k => $v) $out .= '<input type="hidden" name="' . h($k) . '" value="' . h($v) . '">';
+        $out .= '<input type="hidden" name="range" value="custom"><label>From<input type="date" name="from" value="' . h($r['from']) . '" max="' . date('Y-m-d') . '" required></label><label>To<input type="date" name="to" value="' . h($r['to']) . '" max="' . date('Y-m-d') . '" required></label><button class="btn sm">Show</button></form>';
+    }
+    return $out . '<p class="mut range-note">Showing ' . h($r['label']) . ($r['key'] === 'custom' && $r['n'] > 1 ? ' (' . $r['n'] . ' days)' : '') . '.</p>';
+}
+
 /* ---------------- ads / UTM analytics: which campaign, ad set and ad bring good orders, and which bring cancellations ---------------- */
 if ($page === 'utm') {
-    $days = (int) ($_GET['days'] ?? 30); if (!in_array($days, [7, 30, 90], true)) $days = 30;
+    $R = report_range();
     $dims = ['campaign' => ['utm_campaign', 'Campaign'], 'term' => ['utm_term', 'Ad set'], 'content' => ['utm_content', 'Ad / creative'], 'path' => ['', 'Campaign › ad set › ad'], 'placement' => ['placement', 'Placement'],
         'source' => ['utm_source', 'Source'], 'device' => ['device', 'Device'], 'country' => ['country', 'Country'], 'os' => ['os', 'System'], 'browser' => ['browser', 'Browser']];
     $by = isset($dims[$_GET['by'] ?? '']) ? (string) $_GET['by'] : 'campaign';
-    $st = $pdo->prepare('SELECT status, total, subtotal, cost, tracking, user_agent FROM orders WHERE created_at >= ?'); $st->execute([date('Y-m-d 00:00:00', strtotime('-' . ($days - 1) . ' days'))]);
+    $st = $pdo->prepare('SELECT status, total, subtotal, cost, tracking, user_agent FROM orders WHERE created_at >= ? AND created_at <= ?'); $st->execute([$R['start'], $R['end']]);
     $g = []; $tot = ['n' => 0, 'pending' => 0, 'confirmed' => 0, 'delivered' => 0, 'bad' => 0, 'value' => 0, 'profit' => 0];
     foreach ($st as $o) {
         $t = json_decode((string) $o['tracking'], true) ?: [];
@@ -402,10 +449,10 @@ if ($page === 'utm') {
         }
         unset($x);
     }
-    $since = date('Y-m-d', strtotime('-' . ($days - 1) . ' days')); $blank = ['n' => 0, 'pending' => 0, 'confirmed' => 0, 'delivered' => 0, 'bad' => 0, 'value' => 0, 'profit' => 0];
+    $blank = ['n' => 0, 'pending' => 0, 'confirmed' => 0, 'delivered' => 0, 'bad' => 0, 'value' => 0, 'profit' => 0];
     $spendRows = []; $tot['spend'] = 0;
     if ($by === 'campaign') {
-        $sp = $pdo->prepare('SELECT * FROM ad_spend WHERE day >= ? ORDER BY day DESC, id DESC'); $sp->execute([$since]); $spendRows = $sp->fetchAll();
+        $sp = $pdo->prepare('SELECT * FROM ad_spend WHERE day >= ? AND day <= ? ORDER BY day DESC, id DESC'); $sp->execute([$R['from'], $R['to']]); $spendRows = $sp->fetchAll();
         foreach ($spendRows as $r) { $g[$r['campaign']] = $g[$r['campaign']] ?? $blank; $g[$r['campaign']]['spend'] = ($g[$r['campaign']]['spend'] ?? 0) + (int) $r['amount']; $tot['spend'] += (int) $r['amount']; }
     }
     $withSpend = $by === 'campaign';
@@ -418,10 +465,8 @@ if ($page === 'utm') {
         return '<tr' . ($foot ? ' class="tot"' : '') . '><td class="nm">' . h($label) . '</td><td>' . $x['n'] . '</td><td>' . $x['pending'] . '</td><td>' . $x['confirmed'] . '</td><td>' . $x['delivered'] . '</td><td>' . $x['bad'] . '</td><td' . $cls . '>' . $rate . '%</td><td>' . taka($x['value']) . '</td><td>' . taka($x['profit']) . '</td>' . $extra . '</tr>';
     };
     page_head('Ads');
-    echo '<div class="row"><h1>Ads &amp; UTM</h1><div class="tabs sm">';
-    foreach ([7, 30, 90] as $d) echo '<a href="index.php?' . h(http_build_query(['p' => 'utm', 'by' => $by, 'days' => $d])) . '"' . ($days === $d ? ' class="on"' : '') . '>' . $d . ' days</a>';
-    echo '</div></div><div class="tabs">';
-    foreach ($dims as $k => $d) echo '<a href="index.php?' . h(http_build_query(['p' => 'utm', 'by' => $k, 'days' => $days])) . '"' . ($by === $k ? ' class="on"' : '') . '>' . $d[1] . '</a>';
+    echo '<h1>Ads &amp; UTM</h1>' . range_picker($R, ['p' => 'utm', 'by' => $by]) . '<div class="tabs">';
+    foreach ($dims as $k => $d) echo '<a href="index.php?' . h(http_build_query(['p' => 'utm', 'by' => $k] + range_params($R))) . '"' . ($by === $k ? ' class="on"' : '') . '>' . $d[1] . '</a>';
     echo '</div><section class="card"><div class="scroll"><table class="tbl utm"><thead><tr><th>' . $dims[$by][1] . '</th><th>Orders</th><th>Pending</th><th>Confirmed</th><th>Delivered</th><th>Cancelled</th><th>Cancel %</th><th>Delivered ৳</th><th>Est. profit</th>' . ($withSpend ? '<th>Ad spend</th><th>Cost / order</th><th>ROAS</th><th>Net after ads</th>' : '') . '</tr></thead><tbody>';
     if (!$g) echo '<tr><td colspan="9" class="mut">No orders in this period.</td></tr>';
     foreach ($g as $label => $x) echo $row((string) $label, $x);
@@ -672,12 +717,13 @@ if ($page === 'settings') {
 }
 
 /* ---------------- dashboard / analytics ---------------- */
-$days = (int) ($_GET['days'] ?? 30); if (!in_array($days, [7, 30, 90], true)) $days = 30;
-$since = date('Y-m-d 00:00:00', strtotime('-' . ($days - 1) . ' days'));
-$st = $pdo->prepare('SELECT id, created_at, status, source, district, total, subtotal, cost, items, tracking FROM orders WHERE created_at >= ? ORDER BY created_at'); $st->execute([$since]); $rows = $st->fetchAll();
+$R = report_range(); $days = $R['n']; $since = $R['start'];
+$st = $pdo->prepare('SELECT id, created_at, status, source, district, total, subtotal, cost, items, tracking FROM orders WHERE created_at >= ? AND created_at <= ? ORDER BY created_at'); $st->execute([$R['start'], $R['end']]); $rows = $st->fetchAll();
 $dead = ['cancelled', 'returned'];
 $k = ['orders' => 0, 'value' => 0, 'delivered' => 0, 'delivered_value' => 0, 'pending' => 0, 'cancelled' => 0, 'pairs' => 0, 'today' => 0, 'today_value' => 0, 'profit' => 0, 'nocost' => 0];
-$byDay = []; for ($i = $days - 1; $i >= 0; $i--) $byDay[date('Y-m-d', strtotime("-$i days"))] = ['n' => 0, 'v' => 0];
+$byDay = [];   // one bar per day; for a single day (Today, Yesterday, or a one-day custom range) one bar per hour
+if ($R['n'] === 1) { for ($hr = 0; $hr < 24; $hr++) $byDay[sprintf('%02d', $hr)] = ['n' => 0, 'v' => 0]; }
+else { for ($ts = strtotime($R['from']); $ts <= strtotime($R['to']); $ts += 86400) $byDay[date('Y-m-d', $ts)] = ['n' => 0, 'v' => 0]; }
 $byStatus = array_fill_keys(array_keys(BG_STATUSES), 0); $byProduct = []; $bySize = []; $bySource = []; $byDistrict = []; $byUtm = [];
 foreach ($rows as $o) {
     $byStatus[$o['status']] = ($byStatus[$o['status']] ?? 0) + 1;
@@ -685,8 +731,7 @@ foreach ($rows as $o) {
     $k['orders']++; if ($o['status'] === 'pending') $k['pending']++; if (!$live) $k['cancelled']++;
     if ($o['status'] === 'delivered') { $k['delivered']++; $k['delivered_value'] += (int) $o['total']; }
     if (!$live) continue;
-    $k['value'] += (int) $o['total']; $k['profit'] += (int) $o['subtotal'] - (int) $o['cost']; if ((int) $o['cost'] === 0) $k['nocost']++; if (isset($byDay[$day])) { $byDay[$day]['n']++; $byDay[$day]['v'] += (int) $o['total']; }
-    if ($day === date('Y-m-d')) { $k['today']++; $k['today_value'] += (int) $o['total']; }
+    $k['value'] += (int) $o['total']; $k['profit'] += (int) $o['subtotal'] - (int) $o['cost']; if ((int) $o['cost'] === 0) $k['nocost']++; $bk = $R['n'] === 1 ? substr($o['created_at'], 11, 2) : $day; if (isset($byDay[$bk])) { $byDay[$bk]['n']++; $byDay[$bk]['v'] += (int) $o['total']; }
     foreach (json_decode((string) $o['items'], true) ?: [] as $i) {
         $k['pairs'] += (int) $i['qty'];
         $pn = preg_replace('/^Babyglee\s+/u', '', (string) $i['product']); $byProduct[$pn] = ($byProduct[$pn] ?? 0) + (int) $i['qty'];
@@ -699,6 +744,9 @@ foreach ($rows as $o) {
     }
 }
 $valid = $k['orders'] - $k['cancelled'];
+/* the "Today" card is always today, whatever period is chosen */
+$tq = $pdo->prepare("SELECT COUNT(*) c, COALESCE(SUM(total), 0) v FROM orders WHERE created_at >= ? AND status NOT IN ('cancelled', 'returned')"); $tq->execute([date('Y-m-d 00:00:00')]); $tr = $tq->fetch();
+$k['today'] = (int) $tr['c']; $k['today_value'] = (int) $tr['v'];
 function bars(array $data, bool $money = true, int $limit = 8): string {
     if (!$data) return '<p class="mut">No data yet.</p>';
     uasort($data, fn($a, $b) => (is_array($b) ? $b['n'] : $b) <=> (is_array($a) ? $a['n'] : $a)); $data = array_slice($data, 0, $limit, true);
@@ -708,14 +756,13 @@ function bars(array $data, bool $money = true, int $limit = 8): string {
 }
 $staffCard = '';
 if ($isAdmin) {
-    $sq = $pdo->prepare("SELECT by_user, status, COUNT(*) c FROM order_log WHERE created_at >= ? AND by_user <> '' AND status IN ('confirmed','cancelled') GROUP BY by_user, status"); $sq->execute([$since]);
+    $sq = $pdo->prepare("SELECT by_user, status, COUNT(*) c FROM order_log WHERE created_at >= ? AND created_at <= ? AND by_user <> '' AND status IN ('confirmed','cancelled') GROUP BY by_user, status"); $sq->execute([$R['start'], $R['end']]);
     $conf = []; $canc = []; foreach ($sq as $r) { if ($r['status'] === 'confirmed') $conf[$r['by_user']] = (int) $r['c']; else $canc[$r['by_user']] = (int) $r['c']; }
     if ($conf || $canc) $staffCard = '<div class="grid2"><section class="card"><h2>Confirmed by staff</h2>' . bars($conf, false) . '</section><section class="card"><h2>Cancelled by staff</h2>' . bars($canc, false) . '</section></div>';
 }
 page_head('Dashboard');
-echo '<div class="row"><h1>Dashboard</h1><div class="tabs sm">';
-foreach ([7, 30, 90] as $d) echo '<a href="index.php?days=' . $d . '"' . ($days === $d ? ' class="on"' : '') . '>' . $d . ' days</a>';
-echo '</div></div>';
+echo '<h1>Dashboard</h1>' . range_picker($R, []);
+$rl = in_array($R['key'], ['today', 'yesterday'], true) ? $R['key'] : ($R['key'] === 'custom' ? ($R['n'] === 1 ? '1 day' : $R['n'] . ' days') : $R['key'] . 'd');
 $lowStock = [];
 foreach (products(true) as $lp) { if (!$lp['track']) continue; $z = array_keys(array_filter($lp['variants'], fn($q) => $q <= 3)); if ($z) $lowStock[] = preg_replace('/^Babyglee\s+/u', '', $lp['name']) . ' (EU ' . implode(', ', $z) . ')'; }
 $openLeads = (int) $pdo->query("SELECT COUNT(*) FROM leads WHERE status = 'new'")->fetchColumn();
@@ -727,15 +774,17 @@ if (!empty($dp['failed'])) echo '<a class="alert warn" href="index.php?p=orders"
 if (!empty($dp['pending'])) echo '<a class="alert soft" href="index.php?p=orders"><b>' . (int) $dp['pending'] . '</b> server Purchase delivery waiting to be retried →</a>';
 if (setting('gtm_id') === '') echo '<a class="alert soft" href="index.php?p=settings">Tracking is off: add your GTM container ID in Settings →</a>';
 echo '<div class="kpis"><div class="card kpi"><span>Today</span><b>' . $k['today'] . '</b><small>' . taka($k['today_value']) . '</small></div>
-  <div class="card kpi"><span>Orders (' . $days . 'd)</span><b>' . $valid . '</b><small>' . $k['cancelled'] . ' cancelled / returned</small></div>
+  <div class="card kpi"><span>Orders (' . h($rl) . ')</span><b>' . $valid . '</b><small>' . $k['cancelled'] . ' cancelled / returned</small></div>
   <div class="card kpi"><span>Order value</span><b>' . taka($k['value']) . '</b><small>avg ' . taka($valid ? $k['value'] / $valid : 0) . '</small></div>
   <div class="card kpi"><span>Delivered</span><b>' . $k['delivered'] . '</b><small>' . taka($k['delivered_value']) . ' collected</small></div>
   <div class="card kpi"><span>Pairs sold</span><b>' . $k['pairs'] . '</b><small>' . ($k['orders'] ? round($k['cancelled'] / $k['orders'] * 100) : 0) . '% cancel rate</small></div>' . (!$isAdmin ? '' : '
   <div class="card kpi"><span>Est. profit</span><b>' . ($k['nocost'] === $valid && $valid ? '—' : taka($k['profit'])) . '</b><small>' . ($k['nocost'] ? '<a href="index.php?p=products">add purchase prices</a>' : 'before delivery &amp; ads') . '</small></div>') . '</div>';
 $maxDay = max(array_map(fn($d) => $d['n'], $byDay)) ?: 1;
-echo '<section class="card"><h2>Orders per day</h2><div class="chart" role="img" aria-label="Orders per day for the last ' . $days . ' days">';
-foreach ($byDay as $d => $x) echo '<div class="col" title="' . h(date('d M', strtotime($d))) . ': ' . $x['n'] . ' orders, ' . taka($x['v']) . '"><i style="height:' . max(2, round($x['n'] / $maxDay * 100)) . '%"></i></div>';
-echo '</div><div class="axis"><span>' . h(date('d M', strtotime(array_key_first($byDay)))) . '</span><span>busiest day: ' . $maxDay . ' orders</span><span>' . h(date('d M', strtotime(array_key_last($byDay)))) . '</span></div></section>
+$hourly = $R['n'] === 1;   // one day: orders per hour
+$cap = fn($d) => $hourly ? $d . ':00' : date('d M', strtotime($d));
+echo '<section class="card"><h2>Orders per ' . ($hourly ? 'hour' : 'day') . '</h2><div class="chart"' . (count($byDay) > 90 ? ' style="gap:0"' : '') . ' role="img" aria-label="Orders per ' . ($hourly ? 'hour' : 'day') . ' for ' . h($R['label']) . '">';
+foreach ($byDay as $d => $x) echo '<div class="col" title="' . h($cap((string) $d)) . ': ' . $x['n'] . ' orders, ' . taka($x['v']) . '"><i style="height:' . max(2, round($x['n'] / $maxDay * 100)) . '%"></i></div>';
+echo '</div><div class="axis"><span>' . h($cap((string) array_key_first($byDay))) . '</span><span>busiest ' . ($hourly ? 'hour' : 'day') . ': ' . $maxDay . ' orders</span><span>' . h($cap((string) array_key_last($byDay))) . '</span></div></section>
 <div class="grid2"><section class="card"><h2>By status</h2>' . bars(array_combine(array_map(fn($s) => BG_STATUSES[$s] ?? $s, array_keys($byStatus)), $byStatus), false) . '</section><section class="card"><h2>Store vs landing pages</h2>' . bars($bySource) . '</section>
 <section class="card"><h2>Top products (pairs)</h2>' . bars($byProduct, false) . '</section><section class="card"><h2>Sizes sold</h2>' . bars($bySize, false, 16) . '</section>
 <section class="card"><h2>Traffic source</h2>' . bars($byUtm) . '</section><section class="card"><h2>Top districts</h2>' . bars($byDistrict) . '</section></div>
