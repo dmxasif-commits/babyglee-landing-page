@@ -29,6 +29,15 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-18: New CSS/JS reach every visitor at once (cache fix)
+- Backup of the live site before the changes: `backups/site-2026-11-18-before-cache-busting.zip`.
+- **Problem found:** the previous update (phone layout, logo slider) was live on the server, but a phone that had visited before still showed the old look. The server sends `style.css` and the images with `cache-control: public, max-age=604800` (7 days), so a returning visitor kept the old CSS for up to a week while the page itself was already new.
+- **Fix:** the pages now link `assets/style.css`, `assets/tracking.js` and `assets/main.js` with a short content hash (`?v=9663010b` and so on, computed from the file when `python3 tools/build.py` runs). A changed file gets a new link, so every browser fetches it at once; an unchanged file keeps its link and stays cached. `tools/build.py` (`asset()`), all generated pages.
+- **Rule from now on:** after any change to `assets/style.css`, `assets/main.js` or `assets/tracking.js`, run `python3 tools/build.py` before committing (the hash is made then).
+- Not covered: product photos that are replaced under the same file name (for example the Grey photo changed on 17 Nov) can stay cached for up to 7 days for returning visitors; a new file name avoids that.
+- Tests (browser, 390 and 1280 px, home, checkout, thank-you, privacy): the stylesheet loads with its hash, the logo slider and the 430 px column are active, no failed request, no console error. Not tested: Cloudflare's own cache after the deploy.
+- Files: `tools/build.py`, the six generated pages, `README.md`.
+
 ### 2026-11-18: Phone layout on every screen; the partner logos slide from left to right
 - Backup of the live site before the changes: `backups/site-2026-11-18-before-phone-layout.zip`.
 - **One layout, the phone layout, on every device.** There is no separate desktop design any more: on a desktop, laptop or tablet the site is shown as the same phone-sized column (430 px wide, centred, soft grey surround with a light shadow). On a phone nothing changes (checked: the home page, checkout and thank-you page at 360 and 390 px are pixel-identical to before apart from the logo strip and font anti-aliasing). Done in `assets/style.css`:
