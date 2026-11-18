@@ -29,6 +29,16 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-18: Favicon from the Babyglee logo
+- Backup of the live site before the changes: `backups/site-2026-11-18-before-favicon.zip`.
+- The small icon in the browser tab / address bar was a generic teal square with the letter "b" drawn in code. It is now made from the **Babyglee logo** (`img/logo.webp`):
+  - **Browser tab:** the "B" of the logo (its own teal and white lettering) on a white rounded plate, so it stays readable on light and dark tabs: `img/favicon.ico` (16, 32 and 48 px), `img/favicon-16.png`, `img/favicon-32.png`, `img/favicon-48.png`.
+  - **Phone home screen / bookmarks:** the whole "Babyglee" lettering with the baby face on white: `img/apple-touch-icon.png` (180 px) and `img/icon-192.png` (192 px). The tab icon is only the "B" because the full logo is too small to read at 16–32 px.
+  - The pictures were cut from the logo file with a small script (the pale bubbles and the slogan left out); the logo file is only 234 px wide, so no larger icon was made (it would be blurry).
+- `tools/build.py`: `icon_links()` writes the four `<link>` tags into every page; the files are linked with the content hash (`?v=…`, see the cache fix below) because browsers keep favicons for a very long time. `.htaccess`: a request for `/favicon.ico` is answered with `img/favicon.ico` (some programs ask for that address directly).
+- Tests (browser, all six pages): the four icon links load (200) with the right type and size (ICO; PNG 32×32, 16×16, 180×180), no failed request, no console error. Not tested: how each browser draws it, and `/favicon.ico` on the real server (the rewrite rule only works there). A browser may show the old icon for a while until its own favicon cache is renewed.
+- Files: `tools/build.py`, `.htaccess`, `img/favicon*`, `img/apple-touch-icon.png`, `img/icon-192.png`, the six generated pages, `README.md`.
+
 ### 2026-11-18: New CSS/JS reach every visitor at once (cache fix)
 - Backup of the live site before the changes: `backups/site-2026-11-18-before-cache-busting.zip`.
 - **Problem found:** the previous update (phone layout, logo slider) was live on the server, but a phone that had visited before still showed the old look. The server sends `style.css` and the images with `cache-control: public, max-age=604800` (7 days), so a returning visitor kept the old CSS for up to a week while the page itself was already new.

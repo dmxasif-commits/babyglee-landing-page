@@ -83,8 +83,13 @@ def size_table():
             '<p class="fine">Pick the size whose insole (shown in cm and inches) is your child\'s foot length + 1 cm. For wide feet or thick socks, go one size up. Our team also confirms the size with you by call or message before shipping.</p>')
 
 # ---------- shared chrome ----------
-FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2324babc'/%3E"
-           "%3Ctext x='32' y='46' font-size='40' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3Eb%3C/text%3E%3C/svg%3E")
+# Browser-tab and home-screen icons come from the Babyglee logo (img/favicon*.png, img/favicon.ico, img/apple-touch-icon.png, img/icon-192.png): the "B" of the logo on a white rounded plate for
+# the tab, the whole lettering with the baby for the home screen. They are linked with a content hash (asset()) because browsers keep favicons for a long time.
+def icon_links():
+    return (f'<link rel="icon" href="{asset("img/favicon.ico")}" sizes="any">\n'
+            f'<link rel="icon" type="image/png" sizes="32x32" href="{asset("img/favicon-32.png")}">\n'
+            f'<link rel="icon" type="image/png" sizes="16x16" href="{asset("img/favicon-16.png")}">\n'
+            f'<link rel="apple-touch-icon" sizes="180x180" href="{asset("img/apple-touch-icon.png")}">')
 
 def asset(path):
     """URL of a site file with a short content hash (?v=...). The server tells browsers and the CDN to keep CSS and images for 7 days; with the hash in the link a changed
@@ -105,7 +110,7 @@ def head(title, desc, page, img="img/sky-blue-yellow.webp", extra=""):
 <meta property="og:type" content="website">
 <meta property="og:image" content="{BASE}{img}">
 <meta name="theme-color" content="#24babc">
-<link rel="icon" href="{FAVICON}">
+{icon_links()}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">

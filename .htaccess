@@ -6,6 +6,8 @@ RewriteEngine On
 RewriteRule ^assets/config\.js$ api/live.php?f=config [L,QSA]
 RewriteRule ^assets/products\.js$ api/live.php?f=products [L,QSA]
 RewriteRule ^assets/reviews\.js$ api/live.php?f=reviews [L,QSA]
+# Some programs ask for /favicon.ico directly (the pages link their icons themselves); it is the same file as img/favicon.ico.
+RewriteRule ^favicon\.ico$ img/favicon.ico [L]
 # Private files and folders.
 RewriteRule ^api/(config(\.sample)?|lib|capi|dispatch)\.php$ - [F,L]
 RewriteRule ^(tools|backups|docs|\.git)(/|$) - [F,L]
