@@ -622,9 +622,8 @@ body{max-width:var(--col);margin:0 auto;min-height:100vh;box-shadow:0 0 0 1px rg
 @media(prefers-reduced-motion:reduce){.pmarq{-webkit-mask-image:none;mask-image:none}.ptrack{width:auto;justify-content:center}.plogos{flex-wrap:wrap;justify-content:center;gap:12px 0}.plogos[aria-hidden]{display:none}}
 
 /* ---------- 3D showcase: shoes on podiums, swipe / arrows (built with CSS, no single picture) ---------- */
-.showcase{padding:34px 0 22px;background:#fff}
-.showcase .sec-head{margin-bottom:14px}.showcase .sec-head h2{font-size:1.7rem}
-.sc-scene{position:relative;height:300px;border-radius:26px;overflow:hidden;background:linear-gradient(180deg,#f6ecdc,#efe2cc);perspective:900px;touch-action:pan-y;user-select:none;-webkit-user-select:none;box-shadow:0 18px 34px -22px rgba(80,60,20,.5)}
+.hero-sc{order:2;min-width:0;width:100%;max-width:520px;margin:0 auto}
+.sc-scene{position:relative;height:258px;border-radius:26px;overflow:hidden;background:linear-gradient(180deg,#f6ecdc,#efe2cc);perspective:900px;touch-action:pan-y;user-select:none;-webkit-user-select:none;box-shadow:0 18px 34px -22px rgba(80,60,20,.5)}
 .sc-arch{position:absolute;pointer-events:none;border-radius:50% 50% 0 0}
 .sc-arch.a1{width:78%;height:92%;left:-26%;bottom:-8%;background:#f8f1e4}
 .sc-arch.a2{width:86%;height:100%;right:-34%;bottom:-4%;background:#cfe0cf}
@@ -643,11 +642,12 @@ body{max-width:var(--col);margin:0 auto;min-height:100vh;box-shadow:0 0 0 1px rg
 .sc-pod.sage{--pt:#7fa592;--ps1:#5f8872;--ps2:#7ea592}
 .sc-nav{position:absolute;top:44%;z-index:20;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.92);color:var(--teal-dd);display:grid;place-items:center;box-shadow:0 4px 12px rgba(0,0,0,.18)}
 .sc-nav .ic{font-size:1.3rem}.sc-nav.prev{left:8px}.sc-nav.prev .ic{transform:rotate(90deg)}.sc-nav.next{right:8px}.sc-nav.next .ic{transform:rotate(-90deg)}
-.sc-info{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px;font:600 1.15rem 'Fredoka',sans-serif}
+.sc-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 4px 4px}
+.sc-info{display:flex;gap:8px;align-items:center;font:600 1.05rem 'Fredoka',sans-serif}
 .sc-sw{width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cfd8d8;transition:background .3s}
-.sc-dots{display:flex;gap:8px;justify-content:center;margin:10px 0 16px}
+.sc-dots{display:flex;gap:8px;align-items:center}
 .sc-dot{width:9px;height:9px;border-radius:50%;background:#cfdcdc;padding:0;transition:width .25s,background .25s}
 .sc-dot.on{width:26px;background:var(--teal)}
-.showcase .cta{margin-top:0}
-@media(max-width:400px){.sc-scene{height:274px}.sc-pod{height:56px}}
+@media(min-width:861px){.sc-scene{height:400px}.sc-pod{height:78px}.hero-sc{max-width:none}}
+@media(max-width:400px){.sc-scene{height:240px}.sc-pod{height:52px}}
 @media(prefers-reduced-motion:reduce){.sc-shoe{animation:none}.sc-item{transition:none}}

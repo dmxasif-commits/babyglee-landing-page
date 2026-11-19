@@ -29,6 +29,11 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-19: 3D showcase moved into the hero (one section, not two)
+- Backup of the live site before the change: `backups/site-2026-11-19-before-hero-showcase.zip`.
+- The separate "Five colours, one happy fit" section is removed. The 3D podium showcase now sits **inside the hero**, in the place of the single-photo stage, between the headline and the ৳1,290 price box. Name of the front pair and the dots sit in one row under it. Swipe, arrows, dots, slow auto-turn and tap-to-shop work as before. The hero stays compact on phones (price and buttons still on the first screen at 360×740 and 390×844); on desktop the scene is taller.
+- Files: `tools/build.py` (`showcase_block()` now returns the hero part; old `#stage` markup removed), `assets/style.css`, rebuilt pages. Checked at 360, 390 and 1280 px: no sideways scroll, no script errors.
+
 ### 2026-11-19: 3D shoe showcase under the hero
 - Backup of the live site before the change: `backups/site-2026-11-19-before-showcase.zip`.
 - New section **"Five colours, one happy fit"** right below the delivery strip: the five Bounce pairs stand on pastel podiums in front of arch shapes, built with CSS and a little JavaScript (not one picture). The front pair is large, the others turn away in 3D. Swipe, arrow buttons or dots change the pair; it also turns slowly by itself while on screen (off with reduced-motion). Tapping the front pair, or "Choose your pair", scrolls to the shop. Uses the existing shoe cut-out photos.
