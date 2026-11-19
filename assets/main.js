@@ -73,6 +73,33 @@ if (matchMedia('(hover:hover) and (pointer:fine)').matches) {
   }
 }
 
+/* ---------- 3D showcase: five pairs on podiums; swipe, arrows, dots, slow auto-turn ---------- */
+(() => {
+  const ring = $('#scRing'); if (!ring) return;
+  const items = $$('.sc-item', ring), n = items.length, dots = $$('.sc-dot'), scene = $('#scScene');
+  let cur = 0, timer = null, sx = 0, dx = 0, drag = false, moved = false;
+  const wrapIdx = i => ((i % n) + n) % n;
+  const place = (shift = 0) => items.forEach((it, i) => {
+    let o = i - cur; if (o > n / 2) o -= n; if (o < -n / 2) o += n; o += shift;
+    const a = Math.abs(o), vis = a <= 2.2;
+    it.style.transform = `translateX(${o * 66}%) translateZ(${-a * 150}px) rotateY(${-o * 26}deg) scale(${Math.max(.5, 1 - a * .16)})`;
+    it.style.zIndex = String(10 - Math.round(a * 2)); it.style.opacity = vis ? String(Math.max(.25, 1 - a * .3)) : '0';
+    it.style.filter = a < .6 ? 'none' : `brightness(${1 - Math.min(a, 2) * .07}) saturate(.92)`; it.style.pointerEvents = vis ? 'auto' : 'none';
+    it.setAttribute('aria-hidden', a < .6 ? 'false' : 'true');
+  });
+  const show = i => { cur = wrapIdx(i); place(); dots.forEach((d, k) => d.classList.toggle('on', k === cur)); const it = items[cur]; $('#scName').textContent = it.dataset.name; $('#scSw').style.background = it.dataset.color; };
+  const auto = () => { clearInterval(timer); if (!matchMedia('(prefers-reduced-motion:reduce)').matches) timer = setInterval(() => show(cur + 1), 4200); };
+  $('.sc-nav.prev').onclick = () => { show(cur - 1); auto(); }; $('.sc-nav.next').onclick = () => { show(cur + 1); auto(); };
+  dots.forEach(d => d.onclick = () => { show(+d.dataset.go); auto(); });
+  items.forEach((it, i) => it.addEventListener('click', () => { if (moved) return; if (i === cur) { const t = $('#shop'); if (t) t.scrollIntoView({ behavior: 'smooth' }); } else { show(i); auto(); } }));
+  scene.addEventListener('pointerdown', e => { drag = true; moved = false; sx = e.clientX; dx = 0; clearInterval(timer); });
+  scene.addEventListener('pointermove', e => { if (!drag) return; dx = e.clientX - sx; if (Math.abs(dx) > 6) { moved = true; ring.classList.add('drag'); place(dx / -(scene.clientWidth * .42)); } });
+  const end = () => { if (!drag) return; drag = false; ring.classList.remove('drag'); if (Math.abs(dx) > 40) show(cur + (dx < 0 ? 1 : -1)); else place(); auto(); setTimeout(() => { moved = false; }, 0); };
+  scene.addEventListener('pointerup', end); scene.addEventListener('pointercancel', end); scene.addEventListener('pointerleave', end);
+  show(0);
+  if ('IntersectionObserver' in window) new IntersectionObserver(es => { if (es[0].isIntersecting) auto(); else clearInterval(timer); }).observe(scene); else auto();
+})();
+
 /* ---------- scroll reveal ---------- */
 if ('IntersectionObserver' in window) {
   const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 });

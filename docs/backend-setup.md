@@ -34,6 +34,7 @@ Use **HTTPS** (cPanel → SSL/TLS Status → AutoSSL). The admin login cookie is
 - **Reviews:** Admin → Reviews. Add a customer review as text or as a screenshot (for example from your Facebook page), choose stars, show or hide it.
   The Reviews section of the website stays hidden until at least one review is shown.
 - **Dashboard:** orders and value per day, status, top products and sizes, traffic source (UTM), districts.
+  **Period:** Today, Yesterday, 7 / 30 / 90 days, or **Custom** (From and To dates, up to one year, never in the future). For a single day (Today, Yesterday or a one-day custom range) the chart shows orders per hour. The Ads page has the same period buttons. Days start and end at midnight Bangladesh time (the server clock that stamps the orders). The "Today" card is always today.
 - **Products:** edit name, price, old price, international price (€), colour, sizes in stock, image; hide or remove; add new products.
   A new product appears in the product grid on the landing page automatically.
   Use *More photos* (up to 6) to add extra pictures; the website shows them as thumbnails under the main photo.
