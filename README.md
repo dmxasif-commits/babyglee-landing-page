@@ -29,6 +29,11 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-19: Admin: Tracking audit page
+- Backup of the live site before the change: `backups/site-2026-11-19-before-tracking-audit.zip`.
+- New admin-only page **Tracking** (`?p=audit`). Period buttons as on the Dashboard (Today, Yesterday, 7/30/90 days, Custom). Summary: orders in the database, orders the dashboard counts (not cancelled / returned), cancelled / returned, orders that should have a browser Purchase in Meta, staff / recovered orders (no browser Purchase), server delivery state. A box "Purchases Meta shows for this period" + Compare explains the gap between Meta and the database. Table of every order: time, order, status, from (website / staff / recovered), total, event ID, Facebook ID present, server delivery, and warnings (cancelled / returned, same event ID, same phone twice in a day, no Facebook / visitor ID). Staff accounts cannot open it. Reads saved data only, no changes to orders or tracking.
+- Files: `admin/index.php`, `admin/admin.css`, `docs/backend-setup.md`. Checked at 390 px with sandbox orders: no sideways scroll, ranges and compare work, no errors.
+
 ### 2026-11-19: 3D showcase moved into the hero (one section, not two)
 - Backup of the live site before the change: `backups/site-2026-11-19-before-hero-showcase.zip`.
 - The separate "Five colours, one happy fit" section is removed. The 3D podium showcase now sits **inside the hero**, in the place of the single-photo stage, between the headline and the ৳1,290 price box. Name of the front pair and the dots sit in one row under it. Swipe, arrows, dots, slow auto-turn and tap-to-shop work as before. The hero stays compact on phones (price and buttons still on the first screen at 360×740 and 390×844); on desktop the scene is taller.

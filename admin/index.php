@@ -328,7 +328,7 @@ function page_head(string $title, bool $nav = true): void {
     global $page, $csrf, $me, $isAdmin;
     echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>' . h($title) . ' — Babyglee admin</title><link rel="stylesheet" href="admin.css?v=' . substr((string) @md5_file(__DIR__ . '/admin.css'), 0, 8) . '"></head><body>';
     if ($nav) {
-        $links = ['dashboard' => 'Dashboard', 'orders' => 'Orders', 'leads' => 'Incomplete'] + ($isAdmin ? ['utm' => 'Ads', 'products' => 'Products', 'reviews' => 'Reviews', 'settings' => 'Settings'] : []);
+        $links = ['dashboard' => 'Dashboard', 'orders' => 'Orders', 'leads' => 'Incomplete'] + ($isAdmin ? ['utm' => 'Ads', 'audit' => 'Tracking', 'products' => 'Products', 'reviews' => 'Reviews', 'settings' => 'Settings'] : []);
         echo '<header class="top"><a class="logo" href="index.php">Babyglee <span>admin</span></a><nav>';
         foreach ($links as $k => $l) echo '<a href="index.php?p=' . $k . '"' . (($page === $k || ($k === 'orders' && ($page === 'order' || $page === 'neworder')) || ($k === 'products' && $page === 'product') || ($k === 'leads' && $page === 'lead')) ? ' class="on"' : '') . '>' . $l . '</a>';
         echo '</nav><form method="post" action="index.php?p=logout"><a class="who" href="index.php?p=' . ($isAdmin ? 'settings' : 'account') . '">' . h($me['name']) . '</a>' . $csrf . '<button class="link">Log out</button></form></header>';
@@ -420,6 +420,62 @@ function range_picker(array $r, array $keep): string {
         $out .= '<input type="hidden" name="range" value="custom"><label>From<input type="date" name="from" value="' . h($r['from']) . '" max="' . date('Y-m-d') . '" required></label><label>To<input type="date" name="to" value="' . h($r['to']) . '" max="' . date('Y-m-d') . '" required></label><button class="btn sm">Show</button></form>';
     }
     return $out . '<p class="mut range-note">Showing ' . h($r['label']) . ($r['key'] === 'custom' && $r['n'] > 1 ? ' (' . $r['n'] . ' days)' : '') . '.</p>';
+}
+
+/* ---------------- tracking audit: which orders should have produced a Purchase in Meta, and what happened to each one ---------------- */
+if ($page === 'audit') {
+    $R = report_range(); $metaN = isset($_GET['meta']) && $_GET['meta'] !== '' ? max(0, (int) $_GET['meta']) : null;
+    $st = $pdo->prepare('SELECT id, created_at, status, source, name, phone, total, note, tracking, dispatch, dispatch_state, capi_status FROM orders WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC'); $st->execute([$R['start'], $R['end']]);
+    $rows = $st->fetchAll(); $eidCount = []; $phoneDay = [];
+    foreach ($rows as $o) {
+        $t = json_decode((string) $o['tracking'], true) ?: []; $e = (string) ($t['event_id'] ?? ''); if ($e !== '') $eidCount[$e] = ($eidCount[$e] ?? 0) + 1;
+        $k = $o['phone'] . '|' . substr((string) $o['created_at'], 0, 10); $phoneDay[$k] = ($phoneDay[$k] ?? 0) + 1;
+    }
+    $sum = ['all' => 0, 'live' => 0, 'bad' => 0, 'browser' => 0, 'nobrowser' => 0, 'noids' => 0, 'dups' => 0, 'repeat' => 0, 'sent' => 0, 'pending' => 0, 'failed' => 0, 'none' => 0]; $body = '';
+    $dst = array_map(fn($d) => $d === 'meta' ? 'Meta direct' : 'Server GTM', purchase_destinations('web'));
+    foreach ($rows as $o) {
+        $t = json_decode((string) $o['tracking'], true) ?: []; $d = json_decode((string) $o['dispatch'], true) ?: [];
+        $recovered = (($d['origin'] ?? '') === 'recovered') || strpos((string) $o['note'], 'Recovered from an incomplete order') !== false;
+        $manual = $o['source'] === 'manual'; $bad = in_array($o['status'], ['cancelled', 'returned'], true);
+        $browser = !$manual && !$recovered;   // only a customer who reached the thank-you page can send the browser Purchase
+        $eid = (string) ($t['event_id'] ?? ''); $dupe = $eid !== '' && ($eidCount[$eid] ?? 0) > 1; $rep = ($phoneDay[$o['phone'] . '|' . substr((string) $o['created_at'], 0, 10)] ?? 0) > 1;
+        $noids = $browser && empty($t['fbp']) && empty($t['uid']);
+        $flags = [];
+        if ($bad) $flags[] = ['Cancelled / returned: Meta still counted it, the dashboard does not', 'warn'];
+        if ($manual) $flags[] = ['Entered by staff: no browser Purchase', 'info'];
+        if ($recovered) $flags[] = ['Recovered from Incomplete: no browser Purchase', 'info'];
+        if ($dupe) $flags[] = ['Same event ID on another order', 'warn'];
+        if ($rep) $flags[] = ['Same phone ordered more than once this day (repeat or test?)', 'warn'];
+        if ($noids) $flags[] = ['No Facebook / visitor ID saved: Pixel was probably blocked, Meta may have missed it', 'warn'];
+        $ds = (string) $o['dispatch_state'];
+        $sum['all']++; $bad ? $sum['bad']++ : $sum['live']++; $browser ? $sum['browser']++ : $sum['nobrowser']++; if ($noids) $sum['noids']++; if ($dupe) $sum['dups']++; if ($rep) $sum['repeat']++;
+        $sum[$ds === 'sent' ? 'sent' : ($ds === 'pending' ? 'pending' : ($ds === 'failed' ? 'failed' : 'none'))]++;
+        $srv = $ds === '' ? '<span class="mut">not sent from server</span>' : '<span class="st st-' . ($ds === 'sent' ? 'delivered' : ($ds === 'failed' ? 'cancelled' : 'pending')) . '">' . h($ds) . '</span> <small class="mut">' . h((string) $o['capi_status']) . '</small>';
+        $fl = ''; foreach ($flags as $f) $fl .= '<div class="au-' . $f[1] . '">' . h($f[0]) . '</div>';
+        $body .= '<tr><td>' . h(date('d M H:i', strtotime((string) $o['created_at']))) . '</td><td><a class="oid" href="index.php?p=order&amp;id=' . h($o['id']) . '">#' . h($o['id']) . '</a></td><td>' . badge((string) $o['status']) . '</td>'
+            . '<td>' . ($manual ? 'staff' : ($recovered ? 'recovered' : 'website')) . '</td><td>' . taka($o['total']) . '</td><td class="mono">' . h($eid !== '' ? $eid : '—') . '</td><td>' . ($browser ? (!empty($t['fbp']) ? 'yes' : '<span class="au-warn">no</span>') : '—') . '</td><td>' . $srv . '</td><td class="au-fl">' . ($fl ?: '<span class="mut">OK</span>') . '</td></tr>';
+    }
+    page_head('Tracking audit');
+    echo '<h1>Tracking audit</h1><p class="mut">Checks every order of a period against what Meta should have received. It reads the saved orders only; it cannot see Meta itself, so compare the numbers with Events Manager.</p>' . range_picker($R, ['p' => 'audit'] + ($metaN !== null ? ['meta' => $metaN] : []));
+    echo '<form method="get" class="card range"><input type="hidden" name="p" value="audit">';
+    foreach (range_params($R) as $k => $v) echo '<input type="hidden" name="' . h($k) . '" value="' . h($v) . '">';
+    echo '<label>Purchases Meta shows for this period<input type="number" name="meta" min="0" value="' . ($metaN ?? '') . '" placeholder="e.g. 11"></label><button class="btn">Compare</button></form>';
+    $exp = $sum['browser'];
+    echo '<section class="card"><h2>Summary</h2><div class="kpis">'
+        . '<div class="kpi"><span>Orders in database</span><b>' . $sum['all'] . '</b></div><div class="kpi"><span>Dashboard counts (not cancelled / returned)</span><b>' . $sum['live'] . '</b></div><div class="kpi"><span>Cancelled / returned</span><b>' . $sum['bad'] . '</b></div>'
+        . '<div class="kpi"><span>Should have a browser Purchase in Meta</span><b>' . $exp . '</b></div><div class="kpi"><span>Staff / recovered orders (none in browser)</span><b>' . $sum['nobrowser'] . '</b></div></div>';
+    if ($metaN !== null) {
+        $diff = $metaN - $sum['all'];
+        echo '<p class="au-cmp"><b>Meta ' . $metaN . ' vs ' . $sum['all'] . ' orders in the database</b>: ' . ($diff === 0 ? 'the numbers match.' : ($diff > 0 ? 'Meta has <b>' . $diff . ' more</b> than the database. The database has every order, so these are Purchases that did not come from an order on this site: another website or store on the same Pixel, a test, a duplicate with a different event ID, or a date / time-zone difference. Check Meta Events Manager, Purchase, breakdown by event source URL, and compare the event IDs below.'
+            : 'Meta has <b>' . -$diff . ' fewer</b> than the database. Usual reasons: staff or recovered orders (' . $sum['nobrowser'] . ' here), customers who left before the thank-you page, or a blocked Pixel (' . $sum['noids'] . ' here).'));
+        if ($metaN > $sum['live'] && $sum['bad']) echo ' ' . $sum['bad'] . ' cancelled / returned order(s) are counted by Meta but not on the dashboard.';
+        echo '</p>';
+    }
+    echo '<p class="mut">Server delivery (Settings): ' . ($dst ? h(implode(' + ', $dst)) . ' on. ' : '<b>off</b>: nothing is sent from the server, only the browser / your server GTM sends the Purchase. ') . 'Sent ' . $sum['sent'] . ' · retrying ' . $sum['pending'] . ' · failed ' . $sum['failed'] . ' · not sent ' . $sum['none'] . '.'
+        . ($sum['dups'] ? ' <span class="au-warn">' . $sum['dups'] . ' order(s) share an event ID.</span>' : '') . ($sum['repeat'] ? ' <span class="au-warn">' . $sum['repeat'] . ' order(s) are from a phone number that ordered more than once that day.</span>' : '') . '</p></section>';
+    echo '<section class="card"><h2>Every order</h2><p class="mut">Event ID = what the browser and the server send with the Purchase; Meta counts one event ID once. “Facebook ID” says whether the customer’s browser had the Pixel cookie. Times are the server clock (Bangladesh).</p><div class="scroll"><table class="tbl utm au"><thead><tr><th>Time</th><th>Order</th><th>Status</th><th>From</th><th>Total</th><th>Event ID</th><th>Facebook ID</th><th>Server delivery</th><th>Notes</th></tr></thead><tbody>'
+        . ($body ?: '<tr><td colspan="9" class="mut">No orders in this period.</td></tr>') . '</tbody></table></div></section>';
+    page_foot(); exit;
 }
 
 /* ---------------- ads / UTM analytics: which campaign, ad set and ad bring good orders, and which bring cancellations ---------------- */
