@@ -357,6 +357,18 @@ def partners_block():
     return (f'<section class="partners" id="partners" aria-labelledby="ptTitle"><div class="wrap"><h2 id="ptTitle">Our Official Partners</h2></div>'
             f'<div class="pmarq"><div class="ptrack"><ul class="plogos">{"".join(items)}</ul><ul class="plogos" aria-hidden="true">{"".join(copy)}</ul></div></div></section>\n')
 
+def showcase_block():
+    # 3D showcase: every pair stands on its own podium, built with CSS (no single picture). Swipe / arrows / dots; tap the front pair to go to the shop.
+    pods = ["mint", "cream", "sage", "cream", "mint"]
+    items = "".join(f'<li class="sc-item" data-i="{i}" data-name="{p["name"]}" data-color="{p["color"]}"><div class="sc-shoe"><img src="img/{p["img"]}.webp" alt="Babyglee Bounce sneakers, {p["name"]}" draggable="false" loading="lazy"></div><div class="sc-pod {pods[i % 5]}"></div></li>' for i, p in enumerate(PRODUCTS))
+    dots = "".join(f'<button type="button" class="sc-dot" data-go="{i}" aria-label="Show {p["name"]}"></button>' for i, p in enumerate(PRODUCTS))
+    return (f'<section class="showcase" id="showcase" aria-label="The Bounce series"><div class="wrap"><div class="sec-head"><span class="eyebrow">The Bounce series</span><h2>Five colours, one happy fit</h2></div>'
+            f'<div class="sc-scene" id="scScene"><div class="sc-arch a1"></div><div class="sc-arch a2"></div><div class="sc-light"></div>'
+            f'<button type="button" class="sc-nav prev" aria-label="Previous colour">{ic("chev")}</button><button type="button" class="sc-nav next" aria-label="Next colour">{ic("chev")}</button>'
+            f'<ul class="sc-ring" id="scRing">{items}</ul></div>'
+            f'<div class="sc-info"><span class="sc-sw" id="scSw"></span><b id="scName"></b></div><div class="sc-dots">{dots}</div>'
+            f'<div class="cta center"><a class="btn lg" href="#shop">Choose your pair</a></div></div></section>\n')
+
 def page_index():
     h = head("Babyglee® — International Kids' Sneakers, Available in Bangladesh", "International kids' sneaker brand designed for European markets and available in Bangladesh. Five colours, EU sizes 21–36, Cash on Delivery and 72-hour easy exchange.", "landing", extra=faq_ld())
     h += header("landing")
@@ -381,7 +393,7 @@ def page_index():
   </div>
 </section>
 {trust_strip()}
-<section class="sec" id="shop"><div class="wrap">
+{showcase_block()}<section class="sec" id="shop"><div class="wrap">
   <div class="sec-head"><span class="eyebrow">The Bounce series</span><h2>Pick your pairs</h2><p>Choose your size, fill your cart, and check out all at once.</p></div>
   <div class="pgrid" id="grid" data-list="landing"><p class="empty-note">Loading the collection…</p></div>
   <noscript><p class="empty-note">Please turn on JavaScript to choose your pairs, or order on WhatsApp.</p></noscript>

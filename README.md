@@ -29,6 +29,11 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-19: 3D shoe showcase under the hero
+- Backup of the live site before the change: `backups/site-2026-11-19-before-showcase.zip`.
+- New section **"Five colours, one happy fit"** right below the delivery strip: the five Bounce pairs stand on pastel podiums in front of arch shapes, built with CSS and a little JavaScript (not one picture). The front pair is large, the others turn away in 3D. Swipe, arrow buttons or dots change the pair; it also turns slowly by itself while on screen (off with reduced-motion). Tapping the front pair, or "Choose your pair", scrolls to the shop. Uses the existing shoe cut-out photos.
+- Files: `tools/build.py` (`showcase_block()`), `assets/style.css`, `assets/main.js`, rebuilt pages. Checked at 360 and 390 px: no sideways scroll, no script errors.
+
 ### 2026-11-19: Dashboard and Ads: Today, Yesterday and a custom date range
 - Backup of the live site before the changes: `backups/site-2026-11-19-before-date-ranges.zip`.
 - **Period buttons** on the Dashboard and on the Ads & UTM report: **Today, Yesterday, 7 days, 30 days, 90 days, Custom** (before: only 7, 30, 90 days). **Custom** shows two date boxes (From, To) and a Show button; the dates can be entered in either order (they are swapped), never in the future, at most one year (a longer range is cut to 366 days), and invalid dates fall back to the last 7 days. A line under the buttons says what is shown ("Showing today (19 Nov).", "Showing 13 Nov – 19 Nov 2026 (7 days).").
