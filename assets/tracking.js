@@ -167,9 +167,11 @@
   })();
 
   /* ---------- GTM loader (set GTM_ID in assets/config.js; GTM_SRC optional first-party/server-side loader URL) ---------- */
-  /* Not started on developer or preview hosts (localhost, 127.x, *.local, *.github.io), so testing there never sends events to the live Pixel/GA4.
-     Add ?bggtm=1 to a URL to start it there on purpose (remembered for the browser tab). */
-  var devHost = /^(localhost|127\.|0\.0\.0\.0|\[::1\]|.*\.local$|.*\.github\.io$)/i.test(location.hostname);
+  /* Started only on the real shop domain (babygleebd.com and its subdomains). Everything else (localhost, 127.x, *.local, staging, preview links such as
+     fiverr.com, *.github.io, raw IP addresses) is a test host: no GTM, no Pixel, no GA4, so testing never reaches the live dataset.
+     Add ?bggtm=1 to a URL to start it there on purpose (remembered for the browser tab). If the shop ever moves to another domain, add it to PROD_HOST. */
+  var PROD_HOST = /(^|\.)babygleebd\.com$/i;
+  var devHost = !PROD_HOST.test(location.hostname);
   if (devHost) { try { if (/[?&]bggtm=1/.test(location.search)) sessionStorage.setItem('bg_gtm_dev', '1'); devHost = sessionStorage.getItem('bg_gtm_dev') !== '1'; } catch (e) {} }
   if (BG.GTM_ID && !devHost) {
     (function (w, d, s, l, i) {
