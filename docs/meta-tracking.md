@@ -29,7 +29,7 @@ Rules that keep numbers clean: the same `event_id` goes to the browser Pixel tag
 | `external_id` | first-party visitor ID (random UUID, cookie `bg_uid` renewed on every visit, with a localStorage copy that restores it; browsers cap script-set cookies, Chrome at 400 days) | `external_id` (let the tag hash it) |
 | `fbp`, `fbc` | Meta cookies `_fbp`, `_fbc` (never changed or lower-cased; `_fbc` is built from `fbclid` when the Pixel has not) | `fbp`, `fbc` |
 | `utm_*`, `fbclid`, `gclid`… | campaign data | custom / GA4 |
-| `meta_custom_data` | `content_type: product`, `content_ids` (SKUs), `contents` (id, quantity, item_price), `num_items`, `value`, `currency: BDT` | `custom_data` |
+| `meta_custom_data` | `content_type: product`, `content_ids` (SKUs, the one product ID format of this site, same as `item_id` and the server copies; a Meta catalogue must use the SKU as its Content ID), `contents` (id, quantity, item_price), `num_items`, `value`, `currency: BDT` | `custom_data` |
 | `ecommerce` | the same data in GA4 format (`items`, `value`, `currency`, `transaction_id`, `shipping`) | GA4 |
 
 On events where the customer's details are known (`generate_lead`, `add_shipping_info`, `add_payment_info`, `purchase`) there are two more objects, already normalised and **SHA-256 hashed** in the browser (no raw phone, name or email ever enters the dataLayer):
