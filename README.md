@@ -29,6 +29,13 @@ See `CLAUDE.md`: record every change below, back up before changing, mobile firs
 
 ## Changelog
 
+### 2026-11-20: Purchase value includes delivery; tracking only on the real domain
+- Backup of the live site before the change: `backups/site-2026-11-20-before-purchase-value.zip`.
+- **Purchase `value` = what the customer pays** (products + delivery): 1,350 inside Dhaka, 1,410 outside, for one pair. `shipping` stays the real delivery charge (60 / 120), currency BDT, items keep their own prices. Before, `value` was the product value only. The same value is sent by the browser event, the Meta Conversions API copy and the server GTM copy, so they merge as one purchase. Files: `assets/main.js`, `api/capi.php`, `api/dispatch.php`, `docs/meta-tracking.md`.
+- **Test traffic kept out:** GTM / Pixel / GA4 now start only on `babygleebd.com` and its subdomains (before: only a list of developer hosts was blocked). Localhost, staging, preview links (for example fiverr.com), other domains and IP addresses stay off; `?bggtm=1` still starts it on purpose. File: `assets/tracking.js`.
+- Not changed: one `purchase` push per order on the thank-you page only, `event_id = purchase_<order number>`, no Purchase on checkout. The product ID format (`item_id`) is unchanged until the Meta catalogue format is confirmed.
+- Checked in the sandbox: one purchase push with value = products + delivery and `shipping` separate; reload, new tab and back/forward send no second purchase.
+
 ### 2026-11-19: Admin: Tracking audit page
 - Backup of the live site before the change: `backups/site-2026-11-19-before-tracking-audit.zip`.
 - New admin-only page **Tracking** (`?p=audit`). Period buttons as on the Dashboard (Today, Yesterday, 7/30/90 days, Custom). Summary: orders in the database, orders the dashboard counts (not cancelled / returned), cancelled / returned, orders that should have a browser Purchase in Meta, staff / recovered orders (no browser Purchase), server delivery state. A box "Purchases Meta shows for this period" + Compare explains the gap between Meta and the database. Table of every order: time, order, status, from (website / staff / recovered), total, event ID, Facebook ID present, server delivery, and warnings (cancelled / returned, same event ID, same phone twice in a day, no Facebook / visitor ID). Staff accounts cannot open it. Reads saved data only, no changes to orders or tracking.

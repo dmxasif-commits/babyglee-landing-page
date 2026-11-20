@@ -28,7 +28,7 @@ function sgtm_purchase(array $order, array $tr, string $ip, string $ua): string 
         'meta_ct' => capi_hash(capi_clean($order['district'])), 'meta_country' => capi_hash('bd'), 'meta_external_id' => $uid !== '' ? capi_hash($uid) : ''], fn($v) => $v !== '');
     $ga = (string) ($tr['ga'] ?? ''); $cid = preg_match('/^GA\d\.\d\.(\d+\.\d+)$/', $ga, $m) ? $m[1] : ($uid ?: $order['id']);
     $items = array_map(fn($i) => ['item_id' => $i['sku'], 'item_name' => $i['product'], 'item_brand' => 'Babyglee', 'item_variant' => 'EU ' . $i['size'], 'price' => (int) $i['price'], 'quantity' => (int) $i['qty']], $order['items']);
-    $params = array_filter(array_merge(['transaction_id' => $order['id'], 'value' => (int) $order['subtotal'], 'currency' => 'BDT', 'shipping' => (int) $order['delivery'], 'tax' => 0, 'items' => $items,
+    $params = array_filter(array_merge(['transaction_id' => $order['id'], 'value' => (int) $order['total'], 'currency' => 'BDT', 'shipping' => (int) $order['delivery'], 'tax' => 0, 'items' => $items,
         'event_id' => $tr['event_id'] ?? ('purchase_' . $order['id']), 'event_source_url' => $tr['page_url'] ?? '', 'order_source' => $order['source'], 'payment_type' => 'Cash on Delivery', 'shipping_tier' => $order['area'],
         'fbp' => $tr['fbp'] ?? '', 'fbc' => $tr['fbc'] ?? '', 'external_id' => $uid, 'ip_override' => $ip, 'user_agent' => $ua, 'engagement_time_msec' => 1, 'backend_event' => 1], $metaUser), fn($v) => $v !== '' && $v !== null);
     /* ip_override is also sent at the top level of the request, where the GA4 Measurement Protocol documents it; keep both until you have checked in

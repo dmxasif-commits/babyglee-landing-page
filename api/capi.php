@@ -22,8 +22,8 @@ function capi_payload(array $order, array $tracking, string $ip, string $ua): ar
     $event = [
         'event_name' => 'Purchase', 'event_time' => time(), 'event_id' => $tracking['event_id'], 'action_source' => 'website',
         'user_data' => $user,
-        /* value = product value, the same as the browser event */
-        'custom_data' => ['currency' => 'BDT', 'value' => (float) ($order['subtotal'] ?? $order['total']), 'order_id' => $order['id'], 'content_type' => 'product',
+        /* value = products + delivery (what the customer pays), the same as the browser event */
+        'custom_data' => ['currency' => 'BDT', 'value' => (float) ($order['total'] ?? ((int) ($order['subtotal'] ?? 0) + (int) ($order['delivery'] ?? 0))), 'order_id' => $order['id'], 'content_type' => 'product',
             'content_ids' => array_values(array_unique(array_column($order['items'], 'sku'))),
             'contents' => array_map(fn($i) => ['id' => $i['sku'], 'quantity' => $i['qty'], 'item_price' => $i['price']], $order['items']),
             'num_items' => array_sum(array_column($order['items'], 'qty'))],

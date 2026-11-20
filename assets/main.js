@@ -321,7 +321,8 @@ async function purchaseEvent(o, beforePush) {
     if (!g) return { item_id: i.sku || i.slug, item_name: i.product || i.slug, item_brand: 'Babyglee', item_variant: 'EU ' + i.size, price: i.price, quantity: i.qty, index: n };
     g.price = i.price; g.discount = Math.max(0, ((PR[i.slug] && PR[i.slug].listPrice) || i.price) - i.price); if (i.sku) g.item_id = i.sku; return g;
   });
-  const value = o.subtotal != null ? o.subtotal : valueOf(items);
+  /* value = what the customer pays: products + delivery (the prices are already after any discount). shipping is sent separately, as before. */
+  const value = o.total != null ? o.total : (o.subtotal != null ? o.subtotal : valueOf(items)) + (o.delivery || 0);
   /* if hashing the customer data stalls, the Purchase is still sent (without it) rather than lost */
   let cd = {}; try { cd = await within(T.customerData({ name: o.name, phone: o.phone, email: o.email, address: o.address, district: o.district }), 2500) || {}; } catch (e) {}
   if (beforePush && beforePush() === false) return;   // already reported for this order (checked again right before the push)
